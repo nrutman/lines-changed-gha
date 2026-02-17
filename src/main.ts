@@ -158,8 +158,8 @@ function generateCommentBody(
 
   let body = `${COMMENT_IDENTIFIER}\n${header}\n\n`;
 
-  // Main summary
-  body += `**+${summary.addedLines}** lines added, **-${summary.removedLines}** lines removed (${netChangeStr} net)\n\n`;
+  // Main summary with colored squares
+  body += `**🟩 +${summary.addedLines}** **🟥 -${summary.removedLines}** (${netChangeStr} net)\n\n`;
 
   // File counts
   const includedCount = summary.includedFiles.length;

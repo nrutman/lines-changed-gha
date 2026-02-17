@@ -109,7 +109,7 @@ The action will post a comment like this:
 
 ## Lines Changed Summary
 
-**+342** lines added, **-128** lines removed (+214 net)
+**🟩 +342** **🟥 -128** (+214 net)
 
 📊 **12** files included, **3** files excluded
 
