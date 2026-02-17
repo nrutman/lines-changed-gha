@@ -9,7 +9,13 @@
       "Bash(pnpm run lint)",
       "Bash(pnpm run format:check:*)",
       "Bash(pnpm run test)",
-      "Bash(pnpm run ci:*)"
+      "Bash(pnpm run ci:*)",
+      "Bash(pnpm outdated:*)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm run format:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm approve-builds:*)",
+      "Bash(time pnpm run test:*)"
     ]
   }
 }

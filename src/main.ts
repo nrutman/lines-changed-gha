@@ -83,7 +83,7 @@ async function run(): Promise<void> {
       issue_number: prNumber,
     });
 
-    const existingComment = comments.find(comment =>
+    const existingComment = comments.find((comment: { body?: string | null }) =>
       comment.body?.includes(COMMENT_IDENTIFIER)
     );
 

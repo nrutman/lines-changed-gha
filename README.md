@@ -152,7 +152,7 @@ pnpm install
 pnpm run build
 ```
 
-This compiles the TypeScript code and bundles it with dependencies using `@vercel/ncc`.
+This compiles the TypeScript code and bundles it with dependencies using `esbuild`.
 
 ### Testing Locally
 
