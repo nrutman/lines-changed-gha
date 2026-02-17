@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { minimatch } from 'minimatch';
+import { createHash } from 'crypto';
 
 interface FileChange {
   filename: string;
@@ -69,7 +70,10 @@ async function run(): Promise<void> {
     const commentBody = generateCommentBody(
       summary,
       commentHeader,
-      excludePatterns
+      excludePatterns,
+      owner,
+      repo,
+      prNumber
     );
 
     // Find existing comment
@@ -148,10 +152,24 @@ function calculateDiffSummary(
   };
 }
 
+function generateFileDiffUrl(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  filename: string
+): string {
+  const hash = createHash('md5').update(filename).digest('hex');
+  const anchor = `diff-${hash.substring(0, 16)}`;
+  return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#${anchor}`;
+}
+
 function generateCommentBody(
   summary: DiffSummary,
   header: string,
-  excludePatterns: string[]
+  excludePatterns: string[],
+  owner: string,
+  repo: string,
+  prNumber: number
 ): string {
   const netChange = summary.addedLines - summary.removedLines;
   const netChangeStr = netChange >= 0 ? `+${netChange}` : `${netChange}`;
@@ -179,7 +197,8 @@ function generateCommentBody(
     body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
 
     for (const filename of summary.excludedFiles) {
-      body += `- \`${filename}\`\n`;
+      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
+      body += `- [\`${filename}\`](${fileUrl})\n`;
     }
 
     body += '\n</details>\n\n';
@@ -197,7 +216,8 @@ function generateCommentBody(
     );
 
     for (const file of sortedFiles) {
-      body += `| \`${file.filename}\` | +${file.additions} | -${file.deletions} |\n`;
+      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
+      body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |\n`;
     }
 
     body += '\n</details>';

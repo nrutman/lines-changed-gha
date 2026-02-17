@@ -10,6 +10,7 @@ This is useful when you want to get an accurate sense of the PR scope without co
 - 🎯 Excludes files based on configurable patterns (e.g., `**/generated/**`, `*.lock`)
 - 🔄 Updates the same comment on each run (no spam)
 - 📁 Shows excluded and included files in collapsible sections
+- 🔗 All filenames link directly to their diff in the PR
 - ⚡ Fast and lightweight TypeScript implementation
 
 ## Usage
@@ -118,9 +119,9 @@ The action will post a comment like this:
 
 The following files were excluded based on patterns: `**/generated/**`, `**/*.lock`
 
-- `src/generated/api.ts`
-- `src/generated/types.ts`
-- `package-lock.json`
+- [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123)
+- [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456)
+- [`package-lock.json`](https://github.com/owner/repo/pull/123/files#diff-789abc)
 
 </details>
 
@@ -129,8 +130,8 @@ The following files were excluded based on patterns: `**/generated/**`, `**/*.lo
 
 | File | Lines Added | Lines Removed |
 |------|-------------|---------------|
-| `src/components/UserProfile.tsx` | +45 | -12 |
-| `src/utils/helpers.ts` | +23 | -8 |
+| [`src/components/UserProfile.tsx`](https://github.com/owner/repo/pull/123/files#diff-xyz123) | +45 | -12 |
+| [`src/utils/helpers.ts`](https://github.com/owner/repo/pull/123/files#diff-abc789) | +23 | -8 |
 | ...
 
 </details>
