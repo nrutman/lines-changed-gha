@@ -1,0 +1,22 @@
+name: Lines Changed Summary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lines-changed:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Comment with lines changed summary
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          exclude-patterns: '**/dist/**,**/node_modules/**,pnpm-lock.yaml'
+          comment-header: '## 📊 Lines Changed Summary'

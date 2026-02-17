@@ -3,7 +3,13 @@
     "allow": [
       "Bash(npm install)",
       "Bash(npm run build:*)",
-      "Bash(pnpm run build)"
+      "Bash(pnpm run build)",
+      "Bash(pnpm install)",
+      "Bash(pnpm run type-check:*)",
+      "Bash(pnpm run lint)",
+      "Bash(pnpm run format:check:*)",
+      "Bash(pnpm run test)",
+      "Bash(pnpm run ci:*)"
     ]
   }
 }
