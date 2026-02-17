@@ -25144,13 +25144,19 @@ function calculateDiffSummary(files, excludePatterns) {
   const includedFiles = [];
   let addedLines = 0;
   let removedLines = 0;
+  let excludedAddedLines = 0;
+  let excludedRemovedLines = 0;
   for (const file of files) {
     const isExcluded = excludePatterns.some(
       (pattern) => minimatch(file.filename, pattern, { dot: true })
     );
     if (isExcluded) {
       excludedFiles.push(file.filename);
-      info(`\u2717 Excluded: ${file.filename}`);
+      excludedAddedLines += file.additions;
+      excludedRemovedLines += file.deletions;
+      info(
+        `\u2717 Excluded: ${file.filename} (+${file.additions} -${file.deletions})`
+      );
     } else {
       includedFiles.push(file);
       addedLines += file.additions;
@@ -25163,6 +25169,8 @@ function calculateDiffSummary(files, excludePatterns) {
   return {
     addedLines,
     removedLines,
+    excludedAddedLines,
+    excludedRemovedLines,
     totalFiles: files.length,
     excludedFiles,
     includedFiles
@@ -25183,11 +25191,17 @@ ${header}
   body += `**\u{1F7E9} +${summary2.addedLines}** **\u{1F7E5} -${summary2.removedLines}** (${netChangeStr} net)
 
 `;
+  const totalAddedLines = summary2.addedLines + summary2.excludedAddedLines;
+  const totalRemovedLines = summary2.removedLines + summary2.excludedRemovedLines;
+  const totalChangedLines = totalAddedLines + totalRemovedLines;
+  const excludedChangedLines = summary2.excludedAddedLines + summary2.excludedRemovedLines;
   const includedCount = summary2.includedFiles.length;
   const excludedCount = summary2.excludedFiles.length;
   body += `\u{1F4CA} **${includedCount}** ${includedCount === 1 ? "file" : "files"} included`;
   if (excludedCount > 0) {
-    body += `, **${excludedCount}** ${excludedCount === 1 ? "file" : "files"} excluded
+    const excludedPercentage = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
+    body += `, **${excludedCount}** ${excludedCount === 1 ? "file" : "files"} excluded`;
+    body += ` (${excludedPercentage}% of changes)
 
 `;
   } else {
@@ -25196,6 +25210,9 @@ ${header}
   if (excludedCount > 0) {
     body += "<details>\n<summary>Excluded files</summary>\n\n";
     body += `The following files were excluded based on patterns: \`${excludePatterns.join("`, `")}\`
+
+`;
+    body += `**Total excluded:** +${summary2.excludedAddedLines} / -${summary2.excludedRemovedLines} lines
 
 `;
     for (const filename of summary2.excludedFiles) {

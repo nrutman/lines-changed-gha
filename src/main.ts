@@ -14,6 +14,8 @@ interface FileChange {
 interface DiffSummary {
   addedLines: number;
   removedLines: number;
+  excludedAddedLines: number;
+  excludedRemovedLines: number;
   totalFiles: number;
   excludedFiles: string[];
   includedFiles: FileChange[];
@@ -124,6 +126,8 @@ function calculateDiffSummary(
   const includedFiles: FileChange[] = [];
   let addedLines = 0;
   let removedLines = 0;
+  let excludedAddedLines = 0;
+  let excludedRemovedLines = 0;
 
   for (const file of files) {
     const isExcluded = excludePatterns.some(pattern =>
@@ -132,7 +136,11 @@ function calculateDiffSummary(
 
     if (isExcluded) {
       excludedFiles.push(file.filename);
-      core.info(`✗ Excluded: ${file.filename}`);
+      excludedAddedLines += file.additions;
+      excludedRemovedLines += file.deletions;
+      core.info(
+        `✗ Excluded: ${file.filename} (+${file.additions} -${file.deletions})`
+      );
     } else {
       includedFiles.push(file);
       addedLines += file.additions;
@@ -146,6 +154,8 @@ function calculateDiffSummary(
   return {
     addedLines,
     removedLines,
+    excludedAddedLines,
+    excludedRemovedLines,
     totalFiles: files.length,
     excludedFiles,
     includedFiles,
@@ -179,6 +189,13 @@ function generateCommentBody(
   // Main summary with colored squares
   body += `**🟩 +${summary.addedLines}** **🟥 -${summary.removedLines}** (${netChangeStr} net)\n\n`;
 
+  // Calculate exclusion percentage
+  const totalAddedLines = summary.addedLines + summary.excludedAddedLines;
+  const totalRemovedLines = summary.removedLines + summary.excludedRemovedLines;
+  const totalChangedLines = totalAddedLines + totalRemovedLines;
+  const excludedChangedLines =
+    summary.excludedAddedLines + summary.excludedRemovedLines;
+
   // File counts
   const includedCount = summary.includedFiles.length;
   const excludedCount = summary.excludedFiles.length;
@@ -186,7 +203,12 @@ function generateCommentBody(
   body += `📊 **${includedCount}** ${includedCount === 1 ? 'file' : 'files'} included`;
 
   if (excludedCount > 0) {
-    body += `, **${excludedCount}** ${excludedCount === 1 ? 'file' : 'files'} excluded\n\n`;
+    const excludedPercentage =
+      totalChangedLines > 0
+        ? Math.round((excludedChangedLines / totalChangedLines) * 100)
+        : 0;
+    body += `, **${excludedCount}** ${excludedCount === 1 ? 'file' : 'files'} excluded`;
+    body += ` (${excludedPercentage}% of changes)\n\n`;
   } else {
     body += '\n\n';
   }
@@ -195,6 +217,7 @@ function generateCommentBody(
   if (excludedCount > 0) {
     body += '<details>\n<summary>Excluded files</summary>\n\n';
     body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
+    body += `**Total excluded:** +${summary.excludedAddedLines} / -${summary.excludedRemovedLines} lines\n\n`;
 
     for (const filename of summary.excludedFiles) {
       const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);

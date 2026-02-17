@@ -112,12 +112,14 @@ The action will post a comment like this:
 
 **🟩 +342** **🟥 -128** (+214 net)
 
-📊 **12** files included, **3** files excluded
+📊 **12** files included, **3** files excluded (15% of changes)
 
 <details>
 <summary>Excluded files</summary>
 
 The following files were excluded based on patterns: `**/generated/**`, `**/*.lock`
+
+**Total excluded:** +75 / -8 lines
 
 - [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123)
 - [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456)

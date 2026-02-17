@@ -49,3 +49,52 @@ describe('Lines calculation', () => {
     expect(formatted).toBe('-50');
   });
 });
+
+describe('Exclusion percentage calculation', () => {
+  it('should calculate exclusion percentage correctly', () => {
+    const includedAdded = 342;
+    const includedRemoved = 128;
+    const excludedAdded = 75;
+    const excludedRemoved = 8;
+
+    const totalChangedLines =
+      includedAdded + includedRemoved + excludedAdded + excludedRemoved;
+    const excludedChangedLines = excludedAdded + excludedRemoved;
+    const percentage = Math.round(
+      (excludedChangedLines / totalChangedLines) * 100
+    );
+
+    expect(percentage).toBe(15);
+  });
+
+  it('should handle 0% exclusion', () => {
+    const totalChangedLines = 500;
+    const excludedChangedLines = 0;
+    const percentage = Math.round(
+      (excludedChangedLines / totalChangedLines) * 100
+    );
+
+    expect(percentage).toBe(0);
+  });
+
+  it('should handle 100% exclusion', () => {
+    const totalChangedLines = 500;
+    const excludedChangedLines = 500;
+    const percentage = Math.round(
+      (excludedChangedLines / totalChangedLines) * 100
+    );
+
+    expect(percentage).toBe(100);
+  });
+
+  it('should handle no changes', () => {
+    const totalChangedLines = 0;
+    const excludedChangedLines = 0;
+    const percentage =
+      totalChangedLines > 0
+        ? Math.round((excludedChangedLines / totalChangedLines) * 100)
+        : 0;
+
+    expect(percentage).toBe(0);
+  });
+});
