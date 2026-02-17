@@ -156,6 +156,40 @@ pnpm run build
 
 This compiles the TypeScript code and bundles it with dependencies using `esbuild`. Always commit the `dist/` folder after building.
 
+### Ensuring Build Files Are Always Up To Date
+
+The CI workflow includes a dedicated job called **"Verify Build Files Up To Date"** that checks if the committed `dist/` files match the source code. This prevents merging changes when build files are outdated.
+
+#### Enable Branch Protection (Recommended)
+
+To **enforce** that build files are always up to date:
+
+1. Go to your repository **Settings** → **Branches**
+2. Add a branch protection rule for `main`
+3. Enable **"Require status checks to pass before merging"**
+4. Select the following required checks:
+   - ✅ **Test, Lint, and Type Check**
+   - ✅ **Verify Build Files Up To Date**
+
+This will prevent merging any PR where the build files are out of date.
+
+#### Optional: Pre-commit Hook
+
+You can add a pre-commit hook to automatically rebuild before committing:
+
+```bash
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/sh
+echo "Rebuilding action before commit..."
+pnpm run build
+git add dist/
+EOF
+
+chmod +x .git/hooks/pre-commit
+```
+
+**Note:** This rebuilds on every commit, which may slow down your workflow. The CI check is usually sufficient.
+
 ### Testing Locally
 
 To test the action locally, you can use [act](https://github.com/nektos/act) or create a test repository and reference your branch:
@@ -185,7 +219,7 @@ To test the action locally, you can use [act](https://github.com/nektos/act) or 
    git push origin main --tags
    ```
 
-**Note:** The CI workflow automatically verifies that the `dist/` folder is up to date on every PR.
+**Note:** The CI workflow automatically verifies that the `dist/` folder is up to date on every PR. To prevent merging outdated builds, enable branch protection rules (see Development section above).
 
 ## License
 
