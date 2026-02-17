@@ -140,6 +140,8 @@ The following files were excluded based on patterns: `**/generated/**`, `**/*.lo
 
 ## Development
 
+> **⚠️ Important:** This action requires the `dist/` folder to be committed to the repository. GitHub Actions run the pre-built code directly and do not build the action at runtime.
+
 ### Setup
 
 ```bash
@@ -152,7 +154,7 @@ pnpm install
 pnpm run build
 ```
 
-This compiles the TypeScript code and bundles it with dependencies using `esbuild`.
+This compiles the TypeScript code and bundles it with dependencies using `esbuild`. Always commit the `dist/` folder after building.
 
 ### Testing Locally
 
@@ -164,22 +166,26 @@ To test the action locally, you can use [act](https://github.com/nektos/act) or 
 
 ## Publishing
 
+**Important:** GitHub Actions require the compiled `dist/` folder to be committed to the repository. The action runs the pre-built code directly without building itself.
+
 1. Build the action:
    ```bash
    pnpm run build
    ```
 
-2. Commit the `dist/` folder:
+2. Commit all changes including the `dist/` folder:
    ```bash
-   git add dist/
+   git add .
    git commit -m "Build action"
    ```
 
 3. Tag and push:
    ```bash
    git tag -a v1 -m "Release v1"
-   git push --tags
+   git push origin main --tags
    ```
+
+**Note:** The CI workflow automatically verifies that the `dist/` folder is up to date on every PR.
 
 ## License
 
