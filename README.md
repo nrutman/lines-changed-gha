@@ -110,10 +110,19 @@ The action will post a comment like this:
 
 ## 🟩🟩🟩🟥🟥 **+342** / **-128**
 
-**12** files included, **3** files excluded (15% of changes)
+<details>
+<summary>Included (12 files, 85% of changes)</summary>
+
+| File | Lines Added | Lines Removed |
+|------|-------------|---------------|
+| [`src/components/UserProfile.tsx`](https://github.com/owner/repo/pull/123/files#diff-xyz123) | +45 | -12 |
+| [`src/utils/helpers.ts`](https://github.com/owner/repo/pull/123/files#diff-abc789) | +23 | -8 |
+| ...
+
+</details>
 
 <details>
-<summary>Excluded files</summary>
+<summary>Excluded (3 files, 15% of changes)</summary>
 
 The following files were excluded based on patterns: `**/generated/**`, `**/*.lock`
 
@@ -122,17 +131,6 @@ The following files were excluded based on patterns: `**/generated/**`, `**/*.lo
 - [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123)
 - [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456)
 - [`package-lock.json`](https://github.com/owner/repo/pull/123/files#diff-789abc)
-
-</details>
-
-<details>
-<summary>Files included in summary</summary>
-
-| File | Lines Added | Lines Removed |
-|------|-------------|---------------|
-| [`src/components/UserProfile.tsx`](https://github.com/owner/repo/pull/123/files#diff-xyz123) | +45 | -12 |
-| [`src/utils/helpers.ts`](https://github.com/owner/repo/pull/123/files#diff-abc789) | +23 | -8 |
-| ...
 
 </details>
 
@@ -150,6 +148,23 @@ The following files were excluded based on patterns: `**/generated/**`, `**/*.lo
 ```bash
 pnpm install
 ```
+
+#### Configure Git Hooks (Recommended)
+
+Set up automatic dependency installation for all git operations:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This configures three hooks that run `pnpm install` when dependencies change:
+
+**Git Hooks Included:**
+- **`post-checkout`** - After `git checkout` or `git switch`
+- **`post-merge`** - After `git merge` or `git pull`
+- **`post-rewrite`** - After `git rebase`
+
+All hooks are smart: they only run `pnpm install` if `package.json` or `pnpm-lock.yaml` actually changed, preventing unnecessary installations.
 
 ### Build
 

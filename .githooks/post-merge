@@ -1,0 +1,10 @@
+#!/bin/sh
+# Post-merge hook to automatically install dependencies after merge/pull
+
+# Check if package.json or pnpm-lock.yaml changed in the merge
+if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep -qE 'package.json|pnpm-lock.yaml'; then
+  echo "📦 Dependencies changed during merge, running pnpm install..."
+  pnpm install
+else
+  echo "✓ No dependency changes detected"
+fi
