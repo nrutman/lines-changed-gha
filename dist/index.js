@@ -25138,7 +25138,7 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
   const includedPercentage = totalChangedLines > 0 ? Math.round(includedChangedLines / totalChangedLines * 100) : 0;
   const excludedPercentage = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
   if (includedCount > 0) {
-    const includedSummary = `**Included** (${includedCount} ${includedCount === 1 ? "file" : "files"}, ${includedPercentage}% of changes)`;
+    const includedSummary = `Included (${includedCount} ${includedCount === 1 ? "file" : "files"}, ${includedPercentage}% of changes)`;
     body += `<details>
 <summary>${includedSummary}</summary>
 
@@ -25156,7 +25156,7 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
     body += "\n</details>\n\n";
   }
   if (excludedCount > 0) {
-    const excludedSummary = `**Excluded** (${excludedCount} ${excludedCount === 1 ? "file" : "files"}, ${excludedPercentage}% of changes)`;
+    const excludedSummary = `Excluded (${excludedCount} ${excludedCount === 1 ? "file" : "files"}, ${excludedPercentage}% of changes)`;
     body += `<details>
 <summary>${excludedSummary}</summary>
 

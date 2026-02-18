@@ -111,7 +111,7 @@ The action will post a comment like this:
 ## 🟩🟩🟩🟥🟥 **+342** / **-128**
 
 <details>
-<summary><strong>Included</strong> (12 files, 85% of changes)</summary>
+<summary>Included (12 files, 85% of changes)</summary>
 
 | File | Lines Added | Lines Removed |
 |------|-------------|---------------|
@@ -122,7 +122,7 @@ The action will post a comment like this:
 </details>
 
 <details>
-<summary><strong>Excluded</strong> (3 files, 15% of changes)</summary>
+<summary>Excluded (3 files, 15% of changes)</summary>
 
 The following files were excluded based on patterns: `**/generated/**`, `**/*.lock`
 

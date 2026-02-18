@@ -35,7 +35,7 @@ export function generateCommentBody(
       : 0;
 
   if (includedCount > 0) {
-    const includedSummary = `**Included** (${includedCount} ${includedCount === 1 ? 'file' : 'files'}, ${includedPercentage}% of changes)`;
+    const includedSummary = `Included (${includedCount} ${includedCount === 1 ? 'file' : 'files'}, ${includedPercentage}% of changes)`;
     body += `<details>\n<summary>${includedSummary}</summary>\n\n`;
     body += '| File | Lines Added | Lines Removed |\n';
     body += '|------|-------------|---------------|\n';
@@ -53,7 +53,7 @@ export function generateCommentBody(
   }
 
   if (excludedCount > 0) {
-    const excludedSummary = `**Excluded** (${excludedCount} ${excludedCount === 1 ? 'file' : 'files'}, ${excludedPercentage}% of changes)`;
+    const excludedSummary = `Excluded (${excludedCount} ${excludedCount === 1 ? 'file' : 'files'}, ${excludedPercentage}% of changes)`;
     body += `<details>\n<summary>${excludedSummary}</summary>\n\n`;
     body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
     body += `**Total excluded:** +${summary.excludedAddedLines} / -${summary.excludedRemovedLines} lines\n\n`;
