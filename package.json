@@ -11,7 +11,7 @@
     "format": "prettier --write '**/*.ts'",
     "format:check": "prettier --check '**/*.ts'",
     "lint": "eslint .",
-    "ci": "pnpm run type-check && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build"
+    "check": "pnpm type-check && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "repository": {
     "type": "git",

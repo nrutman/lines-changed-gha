@@ -23,9 +23,9 @@ Only use `git status` for verification purposes. The user will handle all git op
 
 **YOU MUST complete these steps before marking any task as done:**
 
-### 1. Run Full CI Pipeline
+### 1. Run All Checks
 ```bash
-pnpm run ci
+pnpm check
 ```
 All checks must pass: type-check, lint, format, tests, build.
 
@@ -33,7 +33,7 @@ All checks must pass: type-check, lint, format, tests, build.
 ```bash
 git status --porcelain dist/
 ```
-**This MUST return empty output.** If it shows changes, run `pnpm run build` and check again.
+**This MUST return empty output.** If it shows changes, run `pnpm build` and check again.
 
 ### 3. Why This Matters
 - GitHub Actions run pre-built code from `dist/` - they don't build at runtime
@@ -45,18 +45,18 @@ git status --porcelain dist/
 ## Quick Commands
 
 ```bash
-# Full CI (run before completing tasks)
-pnpm run ci
+# All checks (run before completing tasks)
+pnpm check
 
 # Development
-pnpm run test:watch    # Tests in watch mode
-pnpm run build         # Build action
+pnpm test:watch    # Tests in watch mode
+pnpm build         # Build action
 
 # Individual checks
-pnpm run type-check
-pnpm run lint
-pnpm run format
-pnpm run test
+pnpm type-check
+pnpm lint
+pnpm format
+pnpm test
 ```
 
 ---
@@ -64,10 +64,10 @@ pnpm run test
 ## Workflow: Making Changes
 
 1. Edit source files in `src/`
-2. Run tests: `pnpm run test`
-3. Build: `pnpm run build`
+2. Run tests: `pnpm test`
+3. Build: `pnpm build`
 4. **Update documentation:** Ensure README.md and other markdown files reflect any UI, API, or behavior changes
-5. **Run CI: `pnpm run ci`**
+5. **Run checks: `pnpm check`**
 6. **Verify dist: `git status --porcelain dist/`** (must be empty)
 7. Inform user that changes are ready (user will commit)
 
@@ -106,15 +106,15 @@ pnpm run test
 
 **Fix:**
 ```bash
-pnpm run build
+pnpm build
 # Then verify: git status --porcelain dist/ (should be empty)
 # Inform user that dist/ needs to be committed
 ```
 
 ### Need to debug
 ```bash
-pnpm run test:watch     # Interactive test debugging
-pnpm run type-check     # Check types only
+pnpm test:watch     # Interactive test debugging
+pnpm type-check     # Check types only
 ```
 
 ---

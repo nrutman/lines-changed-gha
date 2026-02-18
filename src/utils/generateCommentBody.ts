@@ -58,8 +58,14 @@ export function generateCommentBody(
   const includedCount = summary.includedFiles.length;
   const ignoredCount = summary.ignoredFiles.length;
 
-  const includedPercentage = calculatePercentage(includedChangedLines, totalChangedLines);
-  const ignoredPercentage = calculatePercentage(ignoredChangedLines, totalChangedLines);
+  const includedPercentage = calculatePercentage(
+    includedChangedLines,
+    totalChangedLines
+  );
+  const ignoredPercentage = calculatePercentage(
+    ignoredChangedLines,
+    totalChangedLines
+  );
 
   if (includedCount > 0) {
     const changedSummary = `Changed (${includedCount} ${pluralize(includedCount, 'file', 'files')}, ${includedPercentage}% of changes)`;

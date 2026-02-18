@@ -25158,8 +25158,14 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
   const totalChangedLines = includedChangedLines + ignoredChangedLines;
   const includedCount = summary2.includedFiles.length;
   const ignoredCount = summary2.ignoredFiles.length;
-  const includedPercentage = calculatePercentage(includedChangedLines, totalChangedLines);
-  const ignoredPercentage = calculatePercentage(ignoredChangedLines, totalChangedLines);
+  const includedPercentage = calculatePercentage(
+    includedChangedLines,
+    totalChangedLines
+  );
+  const ignoredPercentage = calculatePercentage(
+    ignoredChangedLines,
+    totalChangedLines
+  );
   if (includedCount > 0) {
     const changedSummary = `Changed (${includedCount} ${pluralize(includedCount, "file", "files")}, ${includedPercentage}% of changes)`;
     body += `<details>

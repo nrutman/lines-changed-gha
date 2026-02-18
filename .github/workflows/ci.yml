@@ -30,16 +30,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Type check
-        run: pnpm run type-check
+        run: pnpm type-check
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm lint
 
       - name: Check formatting
-        run: pnpm run format:check
+        run: pnpm format:check
 
       - name: Run tests
-        run: pnpm run test
+        run: pnpm test
 
   # Separate job to verify dist/ is always up to date
   verify-build:
@@ -65,7 +65,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm run build
+        run: pnpm build
 
       - name: Check if dist/ is up to date
         run: |
@@ -76,7 +76,7 @@ jobs:
             echo "This usually means you modified source files but forgot to rebuild."
             echo ""
             echo "To fix this:"
-            echo "  1. Run: pnpm run build"
+            echo "  1. Run: pnpm build"
             echo "  2. Commit the updated dist/ files"
             echo ""
             echo "Changed files:"
