@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test, Lint, and Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm run type-check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Run tests
+        run: pnpm run test
+
+  # Separate job to verify dist/ is always up to date
+  verify-build:
+    name: Verify Build Files Up To Date
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Check if dist/ is up to date
+        run: |
+          if [ -n "$(git status --porcelain dist/)" ]; then
+            echo "❌ Error: dist/ directory is not up to date!"
+            echo ""
+            echo "The committed build files don't match the source code."
+            echo "This usually means you modified source files but forgot to rebuild."
+            echo ""
+            echo "To fix this:"
+            echo "  1. Run: pnpm run build"
+            echo "  2. Commit the updated dist/ files"
+            echo ""
+            echo "Changed files:"
+            git status --porcelain dist/
+            echo ""
+            echo "Diff:"
+            git diff dist/
+            exit 1
+          fi
+          echo "✅ Build files are up to date!"

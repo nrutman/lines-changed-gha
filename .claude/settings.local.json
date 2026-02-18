@@ -3,7 +3,23 @@
     "allow": [
       "Bash(npm install)",
       "Bash(npm run build:*)",
-      "Bash(pnpm run build)"
+      "Bash(pnpm run build)",
+      "Bash(pnpm install)",
+      "Bash(pnpm run type-check:*)",
+      "Bash(pnpm run lint)",
+      "Bash(pnpm run format:check:*)",
+      "Bash(pnpm run test)",
+      "Bash(pnpm run ci:*)",
+      "Bash(pnpm outdated:*)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm run format:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm approve-builds:*)",
+      "Bash(time pnpm run test:*)",
+      "Bash(then echo \"❌ FAIL: dist is out of date\")",
+      "Bash(exit 1)",
+      "Bash(else echo \"✅ PASS: dist is up to date\")",
+      "Bash(fi)"
     ]
   }
 }
