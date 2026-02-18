@@ -30,7 +30,7 @@ jobs:
   lines-changed:
     runs-on: ubuntu-latest
     steps:
-      - uses: nrutman/lines-changed-gha@v1
+      - uses: nrutman/lines-changed-gha@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -38,7 +38,7 @@ jobs:
 ### Ignore Generated Files
 
 ```yaml
-- uses: nrutman/lines-changed-gha@v1
+- uses: nrutman/lines-changed-gha@v2
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     ignore-patterns: |
@@ -51,7 +51,7 @@ jobs:
 ### Custom Comment Header
 
 ```yaml
-- uses: nrutman/lines-changed-gha@v1
+- uses: nrutman/lines-changed-gha@v2
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     ignore-patterns: '**/generated/**,**/*.lock'
@@ -98,7 +98,7 @@ ignore-patterns: '**/generated/**,**/*.lock,**/dist/**'
 ### Using Outputs
 
 ```yaml
-- uses: nrutman/lines-changed-gha@v1
+- uses: nrutman/lines-changed-gha@v2
   id: lines-changed
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -222,29 +222,6 @@ To test the action locally, you can use [act](https://github.com/nektos/act) or 
 ```yaml
 - uses: nrutman/lines-changed-gha@your-branch-name
 ```
-
-## Publishing
-
-**Important:** GitHub Actions require the compiled `dist/` folder to be committed to the repository. The action runs the pre-built code directly without building itself.
-
-1. Build the action:
-   ```bash
-   pnpm build
-   ```
-
-2. Commit all changes including the `dist/` folder:
-   ```bash
-   git add .
-   git commit -m "Build action"
-   ```
-
-3. Tag and push:
-   ```bash
-   git tag -a v1 -m "Release v1"
-   git push origin main --tags
-   ```
-
-**Note:** The CI workflow automatically verifies that the `dist/` folder is up to date on every PR. To prevent merging outdated builds, enable branch protection rules (see Development section above).
 
 ## License
 
