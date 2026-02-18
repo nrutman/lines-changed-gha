@@ -25105,7 +25105,7 @@ var COMMENT_IDENTIFIER = "<!-- lines-changed-summary -->";
 function generateDiffSquares(additions, deletions) {
   const total = additions + deletions;
   if (total === 0) {
-    return "\u2B1C\u2B1C\u2B1C\u2B1C\u2B1C";
+    return "\u25AB\u25AB\u25AB\u25AB\u25AB";
   }
   const greenRatio = additions / total;
   const greenSquares = Math.round(greenRatio * 5);
@@ -25131,21 +25131,46 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
   const totalAddedLines = summary2.addedLines + summary2.excludedAddedLines;
   const totalRemovedLines = summary2.removedLines + summary2.excludedRemovedLines;
   const totalChangedLines = totalAddedLines + totalRemovedLines;
+  const includedChangedLines = summary2.addedLines + summary2.removedLines;
   const excludedChangedLines = summary2.excludedAddedLines + summary2.excludedRemovedLines;
   const includedCount = summary2.includedFiles.length;
   const excludedCount = summary2.excludedFiles.length;
+  const includedPercentage = totalChangedLines > 0 ? Math.round(includedChangedLines / totalChangedLines * 100) : 0;
+  const excludedPercentage = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
   body += `**${includedCount}** ${includedCount === 1 ? "file" : "files"} included`;
   if (excludedCount > 0) {
-    const excludedPercentage = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
+    const excludedPercentage2 = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
     body += `, **${excludedCount}** ${excludedCount === 1 ? "file" : "files"} excluded`;
-    body += ` (${excludedPercentage}% of changes)
+    body += ` (${excludedPercentage2}% of changes)
 
 `;
   } else {
     body += "\n\n";
   }
+  if (includedCount > 0) {
+    const includedSummary = `Included (${includedCount} ${includedCount === 1 ? "file" : "files"}, ${includedPercentage}% of changes)`;
+    body += `<details>
+<summary>${includedSummary}</summary>
+
+`;
+    body += "| File | Lines Added | Lines Removed |\n";
+    body += "|------|-------------|---------------|\n";
+    const sortedFiles = [...summary2.includedFiles].sort(
+      (a, b) => b.changes - a.changes
+    );
+    for (const file of sortedFiles) {
+      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
+      body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |
+`;
+    }
+    body += "\n</details>\n\n";
+  }
   if (excludedCount > 0) {
-    body += "<details>\n<summary>Excluded files</summary>\n\n";
+    const excludedSummary = `Excluded (${excludedCount} ${excludedCount === 1 ? "file" : "files"}, ${excludedPercentage}% of changes)`;
+    body += `<details>
+<summary>${excludedSummary}</summary>
+
+`;
     body += `The following files were excluded based on patterns: \`${excludePatterns.join("`, `")}\`
 
 `;
@@ -25155,20 +25180,6 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
     for (const filename of summary2.excludedFiles) {
       const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
       body += `- [\`${filename}\`](${fileUrl})
-`;
-    }
-    body += "\n</details>\n\n";
-  }
-  if (includedCount > 0) {
-    body += "<details>\n<summary>Files included in summary</summary>\n\n";
-    body += "| File | Lines Added | Lines Removed |\n";
-    body += "|------|-------------|---------------|\n";
-    const sortedFiles = [...summary2.includedFiles].sort(
-      (a, b) => b.changes - a.changes
-    );
-    for (const file of sortedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
-      body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |
 `;
     }
     body += "\n</details>";

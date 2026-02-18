@@ -18,11 +18,21 @@ export function generateCommentBody(
   const totalAddedLines = summary.addedLines + summary.excludedAddedLines;
   const totalRemovedLines = summary.removedLines + summary.excludedRemovedLines;
   const totalChangedLines = totalAddedLines + totalRemovedLines;
+  const includedChangedLines = summary.addedLines + summary.removedLines;
   const excludedChangedLines =
     summary.excludedAddedLines + summary.excludedRemovedLines;
 
   const includedCount = summary.includedFiles.length;
   const excludedCount = summary.excludedFiles.length;
+
+  const includedPercentage =
+    totalChangedLines > 0
+      ? Math.round((includedChangedLines / totalChangedLines) * 100)
+      : 0;
+  const excludedPercentage =
+    totalChangedLines > 0
+      ? Math.round((excludedChangedLines / totalChangedLines) * 100)
+      : 0;
 
   body += `**${includedCount}** ${includedCount === 1 ? 'file' : 'files'} included`;
 
@@ -37,21 +47,9 @@ export function generateCommentBody(
     body += '\n\n';
   }
 
-  if (excludedCount > 0) {
-    body += '<details>\n<summary>Excluded files</summary>\n\n';
-    body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
-    body += `**Total excluded:** +${summary.excludedAddedLines} / -${summary.excludedRemovedLines} lines\n\n`;
-
-    for (const filename of summary.excludedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
-      body += `- [\`${filename}\`](${fileUrl})\n`;
-    }
-
-    body += '\n</details>\n\n';
-  }
-
   if (includedCount > 0) {
-    body += '<details>\n<summary>Files included in summary</summary>\n\n';
+    const includedSummary = `Included (${includedCount} ${includedCount === 1 ? 'file' : 'files'}, ${includedPercentage}% of changes)`;
+    body += `<details>\n<summary>${includedSummary}</summary>\n\n`;
     body += '| File | Lines Added | Lines Removed |\n';
     body += '|------|-------------|---------------|\n';
 
@@ -62,6 +60,20 @@ export function generateCommentBody(
     for (const file of sortedFiles) {
       const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
       body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |\n`;
+    }
+
+    body += '\n</details>\n\n';
+  }
+
+  if (excludedCount > 0) {
+    const excludedSummary = `Excluded (${excludedCount} ${excludedCount === 1 ? 'file' : 'files'}, ${excludedPercentage}% of changes)`;
+    body += `<details>\n<summary>${excludedSummary}</summary>\n\n`;
+    body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
+    body += `**Total excluded:** +${summary.excludedAddedLines} / -${summary.excludedRemovedLines} lines\n\n`;
+
+    for (const filename of summary.excludedFiles) {
+      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
+      body += `- [\`${filename}\`](${fileUrl})\n`;
     }
 
     body += '\n</details>';
