@@ -66,9 +66,26 @@ pnpm run test
 1. Edit source files in `src/`
 2. Run tests: `pnpm run test`
 3. Build: `pnpm run build`
-4. **Run CI: `pnpm run ci`**
-5. **Verify dist: `git status --porcelain dist/`** (must be empty)
-6. Inform user that changes are ready (user will commit)
+4. **Update documentation:** Ensure README.md and other markdown files reflect any UI, API, or behavior changes
+5. **Run CI: `pnpm run ci`**
+6. **Verify dist: `git status --porcelain dist/`** (must be empty)
+7. Inform user that changes are ready (user will commit)
+
+---
+
+## 📝 Documentation Requirements
+
+**ALWAYS update documentation when making changes:**
+
+- If you modify the comment UI format, update the example in README.md
+- If you change action inputs/outputs, update the tables in README.md
+- If you add/remove features, update the Features section
+- If you change behavior, update any relevant examples or instructions
+
+**Key markdown files to check:**
+- `README.md` - Main documentation with usage examples
+- `CLAUDE.md` - This file (development workflow)
+- `action.yml` - Action metadata (inputs, outputs, description)
 
 ---
 
