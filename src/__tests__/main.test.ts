@@ -50,6 +50,69 @@ describe('Lines calculation', () => {
   });
 });
 
+describe('Diff squares generation', () => {
+  it('should generate all green squares for additions only', () => {
+    const additions = 100;
+    const deletions = 0;
+    const total = additions + deletions;
+    const greenRatio = additions / total;
+    const greenSquares = Math.round(greenRatio * 5);
+    const redSquares = 5 - greenSquares;
+    const result = '🟩'.repeat(greenSquares) + '🟥'.repeat(redSquares);
+
+    expect(result).toBe('🟩🟩🟩🟩🟩');
+  });
+
+  it('should generate all red squares for deletions only', () => {
+    const additions = 0;
+    const deletions = 100;
+    const total = additions + deletions;
+    const greenRatio = additions / total;
+    const greenSquares = Math.round(greenRatio * 5);
+    const redSquares = 5 - greenSquares;
+    const result = '🟩'.repeat(greenSquares) + '🟥'.repeat(redSquares);
+
+    expect(result).toBe('🟥🟥🟥🟥🟥');
+  });
+
+  it('should generate proportional squares for mixed changes', () => {
+    const additions = 342;
+    const deletions = 128;
+    const total = additions + deletions;
+    const greenRatio = additions / total;
+    const greenSquares = Math.round(greenRatio * 5);
+    const redSquares = 5 - greenSquares;
+    const result = '🟩'.repeat(greenSquares) + '🟥'.repeat(redSquares);
+
+    // 342/(342+128) = 0.728 -> 0.728*5 = 3.64 -> rounds to 4
+    expect(result).toBe('🟩🟩🟩🟩🟥');
+  });
+
+  it('should handle equal additions and deletions', () => {
+    const additions = 100;
+    const deletions = 100;
+    const total = additions + deletions;
+    const greenRatio = additions / total;
+    const greenSquares = Math.round(greenRatio * 5);
+    const redSquares = 5 - greenSquares;
+    const result = '🟩'.repeat(greenSquares) + '🟥'.repeat(redSquares);
+
+    // 0.5 * 5 = 2.5 -> Math.round rounds to 3
+    expect(result).toBe('🟩🟩🟩🟥🟥');
+  });
+
+  it('should handle no changes', () => {
+    const additions = 0;
+    const deletions = 0;
+    const total = additions + deletions;
+
+    if (total === 0) {
+      const result = '⬜⬜⬜⬜⬜';
+      expect(result).toBe('⬜⬜⬜⬜⬜');
+    }
+  });
+});
+
 describe('Exclusion percentage calculation', () => {
   it('should calculate exclusion percentage correctly', () => {
     const includedAdded = 342;

@@ -173,6 +173,20 @@ function generateFileDiffUrl(
   return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#${anchor}`;
 }
 
+function generateDiffSquares(additions: number, deletions: number): string {
+  const total = additions + deletions;
+
+  if (total === 0) {
+    return '⬜⬜⬜⬜⬜';
+  }
+
+  const greenRatio = additions / total;
+  const greenSquares = Math.round(greenRatio * 5);
+  const redSquares = 5 - greenSquares;
+
+  return '🟩'.repeat(greenSquares) + '🟥'.repeat(redSquares);
+}
+
 function generateCommentBody(
   summary: DiffSummary,
   header: string,
@@ -181,8 +195,11 @@ function generateCommentBody(
   repo: string,
   prNumber: number
 ): string {
-  // Header with stats inline
-  let body = `${COMMENT_IDENTIFIER}\n${header}: **🟩 +${summary.addedLines}** **🟥 -${summary.removedLines}**\n\n`;
+  // Generate diff squares
+  const squares = generateDiffSquares(summary.addedLines, summary.removedLines);
+
+  // Header with squares and stats
+  let body = `${COMMENT_IDENTIFIER}\n## ${squares} **+${summary.addedLines}** / **-${summary.removedLines}**\n\n`;
 
   // Calculate exclusion percentage
   const totalAddedLines = summary.addedLines + summary.excludedAddedLines;
@@ -195,7 +212,7 @@ function generateCommentBody(
   const includedCount = summary.includedFiles.length;
   const excludedCount = summary.excludedFiles.length;
 
-  body += `📊 **${includedCount}** ${includedCount === 1 ? 'file' : 'files'} included`;
+  body += `**${includedCount}** ${includedCount === 1 ? 'file' : 'files'} included`;
 
   if (excludedCount > 0) {
     const excludedPercentage =

@@ -25181,9 +25181,20 @@ function generateFileDiffUrl(owner, repo, prNumber, filename) {
   const anchor = `diff-${hash.substring(0, 16)}`;
   return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#${anchor}`;
 }
+function generateDiffSquares(additions, deletions) {
+  const total = additions + deletions;
+  if (total === 0) {
+    return "\u2B1C\u2B1C\u2B1C\u2B1C\u2B1C";
+  }
+  const greenRatio = additions / total;
+  const greenSquares = Math.round(greenRatio * 5);
+  const redSquares = 5 - greenSquares;
+  return "\u{1F7E9}".repeat(greenSquares) + "\u{1F7E5}".repeat(redSquares);
+}
 function generateCommentBody(summary2, header, excludePatterns, owner, repo, prNumber) {
+  const squares = generateDiffSquares(summary2.addedLines, summary2.removedLines);
   let body = `${COMMENT_IDENTIFIER}
-${header}: **\u{1F7E9} +${summary2.addedLines}** **\u{1F7E5} -${summary2.removedLines}**
+## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**
 
 `;
   const totalAddedLines = summary2.addedLines + summary2.excludedAddedLines;
@@ -25192,7 +25203,7 @@ ${header}: **\u{1F7E9} +${summary2.addedLines}** **\u{1F7E5} -${summary2.removed
   const excludedChangedLines = summary2.excludedAddedLines + summary2.excludedRemovedLines;
   const includedCount = summary2.includedFiles.length;
   const excludedCount = summary2.excludedFiles.length;
-  body += `\u{1F4CA} **${includedCount}** ${includedCount === 1 ? "file" : "files"} included`;
+  body += `**${includedCount}** ${includedCount === 1 ? "file" : "files"} included`;
   if (excludedCount > 0) {
     const excludedPercentage = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
     body += `, **${excludedCount}** ${excludedCount === 1 ? "file" : "files"} excluded`;

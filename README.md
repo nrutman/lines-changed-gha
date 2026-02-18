@@ -108,9 +108,9 @@ The action will post a comment like this:
 
 ---
 
-## Lines Changed Summary: **🟩 +342** **🟥 -128**
+## 🟩🟩🟩🟥🟥 **+342** / **-128**
 
-📊 **12** files included, **3** files excluded (15% of changes)
+**12** files included, **3** files excluded (15% of changes)
 
 <details>
 <summary>Excluded files</summary>
