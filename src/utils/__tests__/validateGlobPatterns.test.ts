@@ -25,12 +25,14 @@ describe('validateGlobPatterns', () => {
     expect(errors[0]).toContain('starts with /');
   });
 
-  it('should warn about backslashes on non-Windows', () => {
-    // This test only applies on non-Windows platforms
-    if (process.platform !== 'win32') {
-      const errors = validateGlobPatterns(['src\\generated\\**']);
+  it('should warn about backslashes on non-Windows platforms', () => {
+    const errors = validateGlobPatterns(['src\\generated\\**']);
 
-      expect(errors.length).toBeGreaterThan(0);
+    if (process.platform === 'win32') {
+      // On Windows, backslashes are valid path separators
+      expect(errors).toHaveLength(0);
+    } else {
+      expect(errors).toHaveLength(1);
       expect(errors[0]).toContain('backslashes');
     }
   });

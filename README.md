@@ -9,7 +9,7 @@ This is useful when you want to get an accurate sense of the PR scope without co
 - 📊 Posts a clean lines changed summary on PRs
 - 🎯 Excludes files based on configurable patterns (e.g., `**/generated/**`, `*.lock`)
 - 🔄 Updates the same comment on each run (no spam)
-- 📁 Shows excluded and included files in collapsible sections
+- 📁 Shows changed and ignored files in collapsible sections
 - 🔗 All filenames link directly to their diff in the PR
 - 📄 Handles PRs with any number of files (automatic pagination)
 - ✅ Validates glob patterns and warns about common mistakes
@@ -118,7 +118,7 @@ The action will post a comment like this:
 ## 🟩🟩🟩🟥🟥 **+342** / **-128**
 
 <details>
-<summary>Included (12 files, 85% of changes)</summary>
+<summary>Changed (12 files, 85% of changes)</summary>
 
 | File | Lines Added | Lines Removed |
 |------|-------------|---------------|
@@ -129,11 +129,11 @@ The action will post a comment like this:
 </details>
 
 <details>
-<summary>Excluded (3 files, 15% of changes)</summary>
+<summary>Ignored (3 files, 15% of changes)</summary>
 
-The following files were excluded based on patterns: `**/generated/**`, `**/*.lock`
+The following files were ignored based on patterns: `**/generated/**`, `**/*.lock`
 
-**Total excluded:** +75 / -8 lines
+**Total ignored:** +75 / -8 lines
 
 - [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123)
 - [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456)

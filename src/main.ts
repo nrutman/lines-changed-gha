@@ -5,7 +5,6 @@ import {
   generateCommentBody,
   validateGlobPatterns,
   COMMENT_IDENTIFIER,
-  type FileChange,
 } from './utils';
 
 async function run(): Promise<void> {
@@ -55,26 +54,23 @@ async function run(): Promise<void> {
     // Calculate diff summary
     const summary = calculateDiffSummary(files, excludePatterns);
 
-    // Log included/excluded files
+    // Log changed/ignored files
     for (const file of summary.includedFiles) {
       core.info(
-        `✓ Included: ${file.filename} (+${file.additions} -${file.deletions})`
+        `✓ Changed: ${file.filename} (+${file.additions} -${file.deletions})`
       );
     }
-    for (const filename of summary.excludedFiles) {
-      const file = files.find((f: FileChange) => f.filename === filename);
-      if (file) {
-        core.info(
-          `✗ Excluded: ${filename} (+${file.additions} -${file.deletions})`
-        );
-      }
+    for (const file of summary.ignoredFiles) {
+      core.info(
+        `✗ Ignored: ${file.filename} (+${file.additions} -${file.deletions})`
+      );
     }
 
     // Set outputs
     core.setOutput('added-lines', summary.addedLines);
     core.setOutput('removed-lines', summary.removedLines);
     core.setOutput('total-files', summary.totalFiles);
-    core.setOutput('excluded-files', summary.excludedFiles.length);
+    core.setOutput('excluded-files', summary.ignoredFiles.length);
 
     // Generate comment body
     const commentBody = generateCommentBody(

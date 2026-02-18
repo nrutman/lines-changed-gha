@@ -23,28 +23,26 @@ export function generateCommentBody(
 
   body += `## ${squares} **+${summary.addedLines}** / **-${summary.removedLines}**\n\n`;
 
-  const totalAddedLines = summary.addedLines + summary.excludedAddedLines;
-  const totalRemovedLines = summary.removedLines + summary.excludedRemovedLines;
-  const totalChangedLines = totalAddedLines + totalRemovedLines;
   const includedChangedLines = summary.addedLines + summary.removedLines;
-  const excludedChangedLines =
-    summary.excludedAddedLines + summary.excludedRemovedLines;
+  const ignoredChangedLines =
+    summary.ignoredAddedLines + summary.ignoredRemovedLines;
+  const totalChangedLines = includedChangedLines + ignoredChangedLines;
 
   const includedCount = summary.includedFiles.length;
-  const excludedCount = summary.excludedFiles.length;
+  const ignoredCount = summary.ignoredFiles.length;
 
   const includedPercentage =
     totalChangedLines > 0
       ? Math.round((includedChangedLines / totalChangedLines) * 100)
       : 0;
-  const excludedPercentage =
+  const ignoredPercentage =
     totalChangedLines > 0
-      ? Math.round((excludedChangedLines / totalChangedLines) * 100)
+      ? Math.round((ignoredChangedLines / totalChangedLines) * 100)
       : 0;
 
   if (includedCount > 0) {
-    const includedSummary = `Included (${includedCount} ${includedCount === 1 ? 'file' : 'files'}, ${includedPercentage}% of changes)`;
-    body += `<details>\n<summary>${includedSummary}</summary>\n\n`;
+    const changedSummary = `Changed (${includedCount} ${includedCount === 1 ? 'file' : 'files'}, ${includedPercentage}% of changes)`;
+    body += `<details>\n<summary>${changedSummary}</summary>\n\n`;
     body += '| File | Lines Added | Lines Removed |\n';
     body += '|------|-------------|---------------|\n';
 
@@ -60,15 +58,15 @@ export function generateCommentBody(
     body += '\n</details>\n\n';
   }
 
-  if (excludedCount > 0) {
-    const excludedSummary = `Excluded (${excludedCount} ${excludedCount === 1 ? 'file' : 'files'}, ${excludedPercentage}% of changes)`;
-    body += `<details>\n<summary>${excludedSummary}</summary>\n\n`;
-    body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
-    body += `**Total excluded:** +${summary.excludedAddedLines} / -${summary.excludedRemovedLines} lines\n\n`;
+  if (ignoredCount > 0) {
+    const ignoredSummary = `Ignored (${ignoredCount} ${ignoredCount === 1 ? 'file' : 'files'}, ${ignoredPercentage}% of changes)`;
+    body += `<details>\n<summary>${ignoredSummary}</summary>\n\n`;
+    body += `The following files were ignored based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
+    body += `**Total ignored:** +${summary.ignoredAddedLines} / -${summary.ignoredRemovedLines} lines\n\n`;
 
-    for (const filename of summary.excludedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
-      body += `- [\`${filename}\`](${fileUrl})\n`;
+    for (const file of summary.ignoredFiles) {
+      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
+      body += `- [\`${file.filename}\`](${fileUrl})\n`;
     }
 
     body += '\n</details>';

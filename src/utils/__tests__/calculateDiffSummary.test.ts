@@ -27,10 +27,10 @@ describe('calculateDiffSummary', () => {
     expect(result.removedLines).toBe(60);
     expect(result.totalFiles).toBe(2);
     expect(result.includedFiles).toHaveLength(2);
-    expect(result.excludedFiles).toHaveLength(0);
+    expect(result.ignoredFiles).toHaveLength(0);
   });
 
-  it('should exclude files matching patterns', () => {
+  it('should ignore files matching patterns', () => {
     const files: FileChange[] = [
       createFile('src/main.ts', 100, 50),
       createFile('src/generated/api.ts', 500, 200),
@@ -44,10 +44,10 @@ describe('calculateDiffSummary', () => {
 
     expect(result.addedLines).toBe(100);
     expect(result.removedLines).toBe(50);
-    expect(result.excludedAddedLines).toBe(1500);
-    expect(result.excludedRemovedLines).toBe(200);
+    expect(result.ignoredAddedLines).toBe(1500);
+    expect(result.ignoredRemovedLines).toBe(200);
     expect(result.includedFiles).toHaveLength(1);
-    expect(result.excludedFiles).toEqual([
+    expect(result.ignoredFiles.map(f => f.filename)).toEqual([
       'src/generated/api.ts',
       'dist/index.js',
     ]);
@@ -60,7 +60,7 @@ describe('calculateDiffSummary', () => {
     expect(result.removedLines).toBe(0);
     expect(result.totalFiles).toBe(0);
     expect(result.includedFiles).toHaveLength(0);
-    expect(result.excludedFiles).toHaveLength(0);
+    expect(result.ignoredFiles).toHaveLength(0);
   });
 
   it('should match lock files with glob pattern', () => {
@@ -73,7 +73,7 @@ describe('calculateDiffSummary', () => {
     const result = calculateDiffSummary(files, ['*-lock.*']);
 
     expect(result.includedFiles).toHaveLength(1);
-    expect(result.excludedFiles).toEqual([
+    expect(result.ignoredFiles.map(f => f.filename)).toEqual([
       'package-lock.json',
       'pnpm-lock.yaml',
     ]);
@@ -89,6 +89,9 @@ describe('calculateDiffSummary', () => {
     const result = calculateDiffSummary(files, ['.*']);
 
     expect(result.includedFiles).toHaveLength(1);
-    expect(result.excludedFiles).toEqual(['.env', '.gitignore']);
+    expect(result.ignoredFiles.map(f => f.filename)).toEqual([
+      '.env',
+      '.gitignore',
+    ]);
   });
 });

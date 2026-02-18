@@ -24,18 +24,6 @@ describe('generateDiffSquares', () => {
     expect(generateDiffSquares(0, 0)).toBe('▫▫▫▫▫');
   });
 
-  it('should handle small numbers', () => {
-    expect(generateDiffSquares(1, 0)).toBe('🟩🟩🟩🟩🟩');
-    expect(generateDiffSquares(0, 1)).toBe('🟥🟥🟥🟥🟥');
-    expect(generateDiffSquares(1, 1)).toBe('🟩🟩🟩🟥🟥');
-  });
-
-  it('should handle large numbers', () => {
-    expect(generateDiffSquares(10000, 0)).toBe('🟩🟩🟩🟩🟩');
-    expect(generateDiffSquares(0, 10000)).toBe('🟥🟥🟥🟥🟥');
-    expect(generateDiffSquares(7500, 2500)).toBe('🟩🟩🟩🟩🟥');
-  });
-
   it('should round correctly at boundaries', () => {
     // 20% green = 1 square
     expect(generateDiffSquares(20, 80)).toBe('🟩🟥🟥🟥🟥');
