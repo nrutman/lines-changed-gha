@@ -1,27 +1,11 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { minimatch } from 'minimatch';
-import { createHash } from 'crypto';
-
-interface FileChange {
-  filename: string;
-  additions: number;
-  deletions: number;
-  changes: number;
-  status: string;
-}
-
-interface DiffSummary {
-  addedLines: number;
-  removedLines: number;
-  excludedAddedLines: number;
-  excludedRemovedLines: number;
-  totalFiles: number;
-  excludedFiles: string[];
-  includedFiles: FileChange[];
-}
-
-const COMMENT_IDENTIFIER = '<!-- lines-changed-summary -->';
+import {
+  calculateDiffSummary,
+  generateCommentBody,
+  COMMENT_IDENTIFIER,
+  type FileChange,
+} from './utils';
 
 async function run(): Promise<void> {
   try {
@@ -61,6 +45,21 @@ async function run(): Promise<void> {
 
     // Calculate diff summary
     const summary = calculateDiffSummary(files, excludePatterns);
+
+    // Log included/excluded files
+    for (const file of summary.includedFiles) {
+      core.info(
+        `✓ Included: ${file.filename} (+${file.additions} -${file.deletions})`
+      );
+    }
+    for (const filename of summary.excludedFiles) {
+      const file = files.find((f: FileChange) => f.filename === filename);
+      if (file) {
+        core.info(
+          `✗ Excluded: ${filename} (+${file.additions} -${file.deletions})`
+        );
+      }
+    }
 
     // Set outputs
     core.setOutput('added-lines', summary.addedLines);
@@ -116,154 +115,6 @@ async function run(): Promise<void> {
       core.setFailed('An unknown error occurred');
     }
   }
-}
-
-function calculateDiffSummary(
-  files: FileChange[],
-  excludePatterns: string[]
-): DiffSummary {
-  const excludedFiles: string[] = [];
-  const includedFiles: FileChange[] = [];
-  let addedLines = 0;
-  let removedLines = 0;
-  let excludedAddedLines = 0;
-  let excludedRemovedLines = 0;
-
-  for (const file of files) {
-    const isExcluded = excludePatterns.some(pattern =>
-      minimatch(file.filename, pattern, { dot: true })
-    );
-
-    if (isExcluded) {
-      excludedFiles.push(file.filename);
-      excludedAddedLines += file.additions;
-      excludedRemovedLines += file.deletions;
-      core.info(
-        `✗ Excluded: ${file.filename} (+${file.additions} -${file.deletions})`
-      );
-    } else {
-      includedFiles.push(file);
-      addedLines += file.additions;
-      removedLines += file.deletions;
-      core.info(
-        `✓ Included: ${file.filename} (+${file.additions} -${file.deletions})`
-      );
-    }
-  }
-
-  return {
-    addedLines,
-    removedLines,
-    excludedAddedLines,
-    excludedRemovedLines,
-    totalFiles: files.length,
-    excludedFiles,
-    includedFiles,
-  };
-}
-
-function generateFileDiffUrl(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  filename: string
-): string {
-  const hash = createHash('md5').update(filename).digest('hex');
-  const anchor = `diff-${hash.substring(0, 16)}`;
-  return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#${anchor}`;
-}
-
-function generateDiffSquares(additions: number, deletions: number): string {
-  const total = additions + deletions;
-
-  if (total === 0) {
-    return '⬜⬜⬜⬜⬜';
-  }
-
-  const greenRatio = additions / total;
-  const greenSquares = Math.round(greenRatio * 5);
-  const redSquares = 5 - greenSquares;
-
-  return '🟩'.repeat(greenSquares) + '🟥'.repeat(redSquares);
-}
-
-function generateCommentBody(
-  summary: DiffSummary,
-  header: string,
-  excludePatterns: string[],
-  owner: string,
-  repo: string,
-  prNumber: number
-): string {
-  // Generate diff squares
-  const squares = generateDiffSquares(summary.addedLines, summary.removedLines);
-
-  // Header with squares and stats
-  let body = `${COMMENT_IDENTIFIER}\n## ${squares} **+${summary.addedLines}** / **-${summary.removedLines}**\n\n`;
-
-  // Calculate exclusion percentage
-  const totalAddedLines = summary.addedLines + summary.excludedAddedLines;
-  const totalRemovedLines = summary.removedLines + summary.excludedRemovedLines;
-  const totalChangedLines = totalAddedLines + totalRemovedLines;
-  const excludedChangedLines =
-    summary.excludedAddedLines + summary.excludedRemovedLines;
-
-  // File counts
-  const includedCount = summary.includedFiles.length;
-  const excludedCount = summary.excludedFiles.length;
-
-  body += `**${includedCount}** ${includedCount === 1 ? 'file' : 'files'} included`;
-
-  if (excludedCount > 0) {
-    const excludedPercentage =
-      totalChangedLines > 0
-        ? Math.round((excludedChangedLines / totalChangedLines) * 100)
-        : 0;
-    body += `, **${excludedCount}** ${excludedCount === 1 ? 'file' : 'files'} excluded`;
-    body += ` (${excludedPercentage}% of changes)\n\n`;
-  } else {
-    body += '\n\n';
-  }
-
-  // Excluded files section (collapsible)
-  if (excludedCount > 0) {
-    body += '<details>\n<summary>Excluded files</summary>\n\n';
-    body += `The following files were excluded based on patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
-    body += `**Total excluded:** +${summary.excludedAddedLines} / -${summary.excludedRemovedLines} lines\n\n`;
-
-    for (const filename of summary.excludedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
-      body += `- [\`${filename}\`](${fileUrl})\n`;
-    }
-
-    body += '\n</details>\n\n';
-  }
-
-  // Included files breakdown (collapsible)
-  if (includedCount > 0) {
-    body += '<details>\n<summary>Files included in summary</summary>\n\n';
-    body += '| File | Lines Added | Lines Removed |\n';
-    body += '|------|-------------|---------------|\n';
-
-    // Sort files by total changes (descending)
-    const sortedFiles = [...summary.includedFiles].sort(
-      (a, b) => b.changes - a.changes
-    );
-
-    for (const file of sortedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
-      body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |\n`;
-    }
-
-    body += '\n</details>';
-  }
-
-  // Attribution
-  body += '\n\n---\n';
-  body +=
-    '*Generated by [Lines Changed](https://github.com/nrutman/lines-changed-gha) GitHub Action*';
-
-  return body;
 }
 
 run();
