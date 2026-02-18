@@ -9,8 +9,10 @@ This is useful when you want to get an accurate sense of the PR scope without co
 - 📊 Posts a clean lines changed summary on PRs
 - 🎯 Excludes files based on configurable patterns (e.g., `**/generated/**`, `*.lock`)
 - 🔄 Updates the same comment on each run (no spam)
-- 📁 Shows excluded and included files in collapsible sections
+- 📁 Shows changed and ignored files in collapsible sections
 - 🔗 All filenames link directly to their diff in the PR
+- 📄 Handles PRs with any number of files (automatic pagination)
+- ✅ Validates glob patterns and warns about common mistakes
 - ⚡ Fast and lightweight TypeScript implementation
 
 ## Usage
@@ -62,7 +64,7 @@ jobs:
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
 | `exclude-patterns` | Comma-separated list of glob patterns to exclude | No | `''` |
-| `comment-header` | Header text for the comment | No | `## Lines Changed Summary` |
+| `comment-header` | Custom header text prepended to the summary | No | None (shows squares and counts only) |
 
 ### Pattern Matching
 
@@ -78,6 +80,11 @@ Multiple patterns can be combined with commas:
 ```yaml
 exclude-patterns: '**/generated/**,**/*.lock,**/dist/**'
 ```
+
+**Pattern Validation:** The action validates your glob patterns and warns about common mistakes:
+- Patterns starting with `/` (should be relative)
+- Patterns using backslashes instead of forward slashes
+- Invalid glob syntax
 
 ## Outputs
 
@@ -111,7 +118,7 @@ The action will post a comment like this:
 ## 🟩🟩🟩🟥🟥 **+342** / **-128**
 
 <details>
-<summary>Included (12 files, 85% of changes)</summary>
+<summary>Changed (12 files, 85% of changes)</summary>
 
 | File | Lines Added | Lines Removed |
 |------|-------------|---------------|
@@ -122,15 +129,15 @@ The action will post a comment like this:
 </details>
 
 <details>
-<summary>Excluded (3 files, 15% of changes)</summary>
+<summary>Ignored (3 files, 15% of changes)</summary>
 
-The following files were excluded based on patterns: `**/generated/**`, `**/*.lock`
+Ignored patterns: `**/generated/**`, `**/*.lock`
 
-**Total excluded:** +75 / -8 lines
-
-- [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123)
-- [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456)
-- [`package-lock.json`](https://github.com/owner/repo/pull/123/files#diff-789abc)
+| File | Lines Added | Lines Removed |
+|------|-------------|---------------|
+| [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123) | +50 | -5 |
+| [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456) | +20 | -3 |
+| [`package-lock.json`](https://github.com/owner/repo/pull/123/files#diff-789abc) | +5 | -0 |
 
 </details>
 
@@ -169,7 +176,7 @@ All hooks are smart: they only run `pnpm install` if `package.json` or `pnpm-loc
 ### Build
 
 ```bash
-pnpm run build
+pnpm build
 ```
 
 This compiles the TypeScript code and bundles it with dependencies using `esbuild`. Always commit the `dist/` folder after building.
@@ -199,7 +206,7 @@ You can add a pre-commit hook to automatically rebuild before committing:
 cat > .git/hooks/pre-commit << 'EOF'
 #!/bin/sh
 echo "Rebuilding action before commit..."
-pnpm run build
+pnpm build
 git add dist/
 EOF
 
@@ -222,7 +229,7 @@ To test the action locally, you can use [act](https://github.com/nektos/act) or 
 
 1. Build the action:
    ```bash
-   pnpm run build
+   pnpm build
    ```
 
 2. Commit all changes including the `dist/` folder:

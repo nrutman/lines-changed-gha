@@ -9,9 +9,9 @@ export interface FileChange {
 export interface DiffSummary {
   addedLines: number;
   removedLines: number;
-  excludedAddedLines: number;
-  excludedRemovedLines: number;
+  ignoredAddedLines: number;
+  ignoredRemovedLines: number;
   totalFiles: number;
-  excludedFiles: string[];
   includedFiles: FileChange[];
+  ignoredFiles: FileChange[];
 }

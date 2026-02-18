@@ -19869,6 +19869,9 @@ function setFailed(message) {
 function error(message, properties = {}) {
   issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
+function warning(message, properties = {}) {
+  issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
 function info(message) {
   process.stdout.write(message + os4.EOL);
 }
@@ -25067,20 +25070,20 @@ minimatch.unescape = unescape;
 
 // src/utils/calculateDiffSummary.ts
 function calculateDiffSummary(files, excludePatterns) {
-  const excludedFiles = [];
   const includedFiles = [];
+  const ignoredFiles = [];
   let addedLines = 0;
   let removedLines = 0;
-  let excludedAddedLines = 0;
-  let excludedRemovedLines = 0;
+  let ignoredAddedLines = 0;
+  let ignoredRemovedLines = 0;
   for (const file of files) {
-    const isExcluded = excludePatterns.some(
+    const isIgnored = excludePatterns.some(
       (pattern) => minimatch(file.filename, pattern, { dot: true })
     );
-    if (isExcluded) {
-      excludedFiles.push(file.filename);
-      excludedAddedLines += file.additions;
-      excludedRemovedLines += file.deletions;
+    if (isIgnored) {
+      ignoredFiles.push(file);
+      ignoredAddedLines += file.additions;
+      ignoredRemovedLines += file.deletions;
     } else {
       includedFiles.push(file);
       addedLines += file.additions;
@@ -25090,16 +25093,16 @@ function calculateDiffSummary(files, excludePatterns) {
   return {
     addedLines,
     removedLines,
-    excludedAddedLines,
-    excludedRemovedLines,
+    ignoredAddedLines,
+    ignoredRemovedLines,
     totalFiles: files.length,
-    excludedFiles,
-    includedFiles
+    includedFiles,
+    ignoredFiles
   };
 }
 
 // src/utils/constants.ts
-var COMMENT_IDENTIFIER = "<!-- lines-changed-summary -->";
+var COMMENT_IDENTIFIER = "<!-- lines-changed-gha:summary:v1 -->";
 
 // src/utils/generateDiffSquares.ts
 function generateDiffSquares(additions, deletions) {
@@ -25116,67 +25119,102 @@ function generateDiffSquares(additions, deletions) {
 // src/utils/generateFileDiffUrl.ts
 var import_crypto = require("crypto");
 function generateFileDiffUrl(owner, repo, prNumber, filename) {
-  const hash = (0, import_crypto.createHash)("md5").update(filename).digest("hex");
-  const anchor = `diff-${hash.substring(0, 16)}`;
-  return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#${anchor}`;
+  const hash = (0, import_crypto.createHash)("sha256").update(filename).digest("hex");
+  return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#diff-${hash}`;
 }
 
 // src/utils/generateCommentBody.ts
+function pluralize(count, singular, plural) {
+  return count === 1 ? singular : plural;
+}
+function calculatePercentage(part, total) {
+  return total > 0 ? Math.round(part / total * 100) : 0;
+}
+function generateFileTable(files, owner, repo, prNumber) {
+  const sortedFiles = [...files].sort((a, b) => b.changes - a.changes);
+  let table = "| File | Lines Added | Lines Removed |\n";
+  table += "|------|-------------|---------------|\n";
+  for (const file of sortedFiles) {
+    const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
+    table += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |
+`;
+  }
+  return table;
+}
 function generateCommentBody(summary2, header, excludePatterns, owner, repo, prNumber) {
   const squares = generateDiffSquares(summary2.addedLines, summary2.removedLines);
   let body = `${COMMENT_IDENTIFIER}
-## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**
+`;
+  if (header) {
+    body += `${header}
 
 `;
-  const totalAddedLines = summary2.addedLines + summary2.excludedAddedLines;
-  const totalRemovedLines = summary2.removedLines + summary2.excludedRemovedLines;
-  const totalChangedLines = totalAddedLines + totalRemovedLines;
+  }
+  body += `## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**
+
+`;
   const includedChangedLines = summary2.addedLines + summary2.removedLines;
-  const excludedChangedLines = summary2.excludedAddedLines + summary2.excludedRemovedLines;
+  const ignoredChangedLines = summary2.ignoredAddedLines + summary2.ignoredRemovedLines;
+  const totalChangedLines = includedChangedLines + ignoredChangedLines;
   const includedCount = summary2.includedFiles.length;
-  const excludedCount = summary2.excludedFiles.length;
-  const includedPercentage = totalChangedLines > 0 ? Math.round(includedChangedLines / totalChangedLines * 100) : 0;
-  const excludedPercentage = totalChangedLines > 0 ? Math.round(excludedChangedLines / totalChangedLines * 100) : 0;
+  const ignoredCount = summary2.ignoredFiles.length;
+  const includedPercentage = calculatePercentage(
+    includedChangedLines,
+    totalChangedLines
+  );
+  const ignoredPercentage = calculatePercentage(
+    ignoredChangedLines,
+    totalChangedLines
+  );
   if (includedCount > 0) {
-    const includedSummary = `Included (${includedCount} ${includedCount === 1 ? "file" : "files"}, ${includedPercentage}% of changes)`;
+    const changedSummary = `Changed (${includedCount} ${pluralize(includedCount, "file", "files")}, ${includedPercentage}% of changes)`;
     body += `<details>
-<summary>${includedSummary}</summary>
+<summary>${changedSummary}</summary>
 
 `;
-    body += "| File | Lines Added | Lines Removed |\n";
-    body += "|------|-------------|---------------|\n";
-    const sortedFiles = [...summary2.includedFiles].sort(
-      (a, b) => b.changes - a.changes
-    );
-    for (const file of sortedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
-      body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |
-`;
-    }
+    body += generateFileTable(summary2.includedFiles, owner, repo, prNumber);
     body += "\n</details>\n\n";
   }
-  if (excludedCount > 0) {
-    const excludedSummary = `Excluded (${excludedCount} ${excludedCount === 1 ? "file" : "files"}, ${excludedPercentage}% of changes)`;
+  if (ignoredCount > 0) {
+    const ignoredSummary = `Ignored (${ignoredCount} ${pluralize(ignoredCount, "file", "files")}, ${ignoredPercentage}% of changes)`;
     body += `<details>
-<summary>${excludedSummary}</summary>
+<summary>${ignoredSummary}</summary>
 
 `;
-    body += `The following files were excluded based on patterns: \`${excludePatterns.join("`, `")}\`
+    body += `Ignored patterns: \`${excludePatterns.join("`, `")}\`
 
 `;
-    body += `**Total excluded:** +${summary2.excludedAddedLines} / -${summary2.excludedRemovedLines} lines
-
-`;
-    for (const filename of summary2.excludedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, filename);
-      body += `- [\`${filename}\`](${fileUrl})
-`;
-    }
+    body += generateFileTable(summary2.ignoredFiles, owner, repo, prNumber);
     body += "\n</details>";
   }
   body += "\n\n---\n";
   body += "*Generated by [Lines Changed](https://github.com/nrutman/lines-changed-gha) GitHub Action*";
   return body;
+}
+
+// src/utils/validateGlobPatterns.ts
+function validateGlobPatterns(patterns) {
+  const errors = [];
+  for (const pattern of patterns) {
+    try {
+      new minimatch.Minimatch(pattern, { dot: true });
+      if (pattern.includes("\\") && process.platform !== "win32") {
+        errors.push(
+          `"${pattern}" contains backslashes - use forward slashes for glob patterns`
+        );
+      }
+      if (pattern.startsWith("/")) {
+        errors.push(
+          `"${pattern}" starts with / - glob patterns should be relative`
+        );
+      }
+    } catch (e) {
+      errors.push(
+        `"${pattern}" is not a valid glob pattern: ${e instanceof Error ? e.message : "unknown error"}`
+      );
+    }
+  }
+  return errors;
 }
 
 // src/main.ts
@@ -25186,6 +25224,12 @@ async function run() {
     const excludePatternsInput = getInput("exclude-patterns");
     const commentHeader = getInput("comment-header");
     const excludePatterns = excludePatternsInput.split(",").map((p) => p.trim()).filter((p) => p.length > 0);
+    const patternErrors = validateGlobPatterns(excludePatterns);
+    if (patternErrors.length > 0) {
+      for (const error2 of patternErrors) {
+        warning(`Invalid exclude pattern: ${error2}`);
+      }
+    }
     const octokit = getOctokit(token);
     const context3 = context2;
     if (!context3.payload.pull_request) {
@@ -25197,7 +25241,7 @@ async function run() {
     const repo = context3.repo.repo;
     info(`Processing PR #${prNumber} in ${owner}/${repo}`);
     info(`Exclude patterns: ${excludePatterns.join(", ") || "none"}`);
-    const { data: files } = await octokit.rest.pulls.listFiles({
+    const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
       owner,
       repo,
       pull_number: prNumber,
@@ -25207,21 +25251,18 @@ async function run() {
     const summary2 = calculateDiffSummary(files, excludePatterns);
     for (const file of summary2.includedFiles) {
       info(
-        `\u2713 Included: ${file.filename} (+${file.additions} -${file.deletions})`
+        `\u2713 Changed: ${file.filename} (+${file.additions} -${file.deletions})`
       );
     }
-    for (const filename of summary2.excludedFiles) {
-      const file = files.find((f) => f.filename === filename);
-      if (file) {
-        info(
-          `\u2717 Excluded: ${filename} (+${file.additions} -${file.deletions})`
-        );
-      }
+    for (const file of summary2.ignoredFiles) {
+      info(
+        `\u2717 Ignored: ${file.filename} (+${file.additions} -${file.deletions})`
+      );
     }
     setOutput("added-lines", summary2.addedLines);
     setOutput("removed-lines", summary2.removedLines);
     setOutput("total-files", summary2.totalFiles);
-    setOutput("excluded-files", summary2.excludedFiles.length);
+    setOutput("excluded-files", summary2.ignoredFiles.length);
     const commentBody = generateCommentBody(
       summary2,
       commentHeader,
@@ -25258,9 +25299,23 @@ async function run() {
     info("\u2713 Lines changed summary posted successfully");
   } catch (error2) {
     if (error2 instanceof Error) {
-      setFailed(error2.message);
+      if (error2.message.includes("Bad credentials")) {
+        setFailed(
+          'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.'
+        );
+      } else if (error2.message.includes("Not Found")) {
+        setFailed(
+          `Repository or PR not found. Ensure the action is running in the correct repository context.`
+        );
+      } else if (error2.message.includes("rate limit")) {
+        setFailed(
+          "GitHub API rate limit exceeded. Please wait before retrying."
+        );
+      } else {
+        setFailed(`Action failed: ${error2.message}`);
+      }
     } else {
-      setFailed("An unknown error occurred");
+      setFailed("An unexpected error occurred");
     }
   }
 }

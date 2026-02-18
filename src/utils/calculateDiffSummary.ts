@@ -5,22 +5,22 @@ export function calculateDiffSummary(
   files: FileChange[],
   excludePatterns: string[]
 ): DiffSummary {
-  const excludedFiles: string[] = [];
   const includedFiles: FileChange[] = [];
+  const ignoredFiles: FileChange[] = [];
   let addedLines = 0;
   let removedLines = 0;
-  let excludedAddedLines = 0;
-  let excludedRemovedLines = 0;
+  let ignoredAddedLines = 0;
+  let ignoredRemovedLines = 0;
 
   for (const file of files) {
-    const isExcluded = excludePatterns.some(pattern =>
+    const isIgnored = excludePatterns.some(pattern =>
       minimatch(file.filename, pattern, { dot: true })
     );
 
-    if (isExcluded) {
-      excludedFiles.push(file.filename);
-      excludedAddedLines += file.additions;
-      excludedRemovedLines += file.deletions;
+    if (isIgnored) {
+      ignoredFiles.push(file);
+      ignoredAddedLines += file.additions;
+      ignoredRemovedLines += file.deletions;
     } else {
       includedFiles.push(file);
       addedLines += file.additions;
@@ -31,10 +31,10 @@ export function calculateDiffSummary(
   return {
     addedLines,
     removedLines,
-    excludedAddedLines,
-    excludedRemovedLines,
+    ignoredAddedLines,
+    ignoredRemovedLines,
     totalFiles: files.length,
-    excludedFiles,
     includedFiles,
+    ignoredFiles,
   };
 }
