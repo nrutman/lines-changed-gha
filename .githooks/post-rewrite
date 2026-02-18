@@ -1,0 +1,16 @@
+#!/bin/sh
+# Post-rewrite hook to automatically install dependencies after rebase/amend
+
+# Get the rewrite type (rebase or amend)
+REWRITE_TYPE=$1
+
+# Only check for rebases (amends are single commits, less likely to need reinstall)
+if [ "$REWRITE_TYPE" = "rebase" ]; then
+  # Check if package.json or pnpm-lock.yaml changed
+  if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep -qE 'package.json|pnpm-lock.yaml'; then
+    echo "📦 Dependencies changed during rebase, running pnpm install..."
+    pnpm install
+  else
+    echo "✓ No dependency changes detected"
+  fi
+fi

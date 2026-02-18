@@ -1,0 +1,18 @@
+#!/bin/sh
+# Post-checkout hook to automatically install dependencies when switching branches
+
+# Get the previous and current commit refs
+PREV_COMMIT=$1
+POST_COMMIT=$2
+BRANCH_CHECKOUT=$3
+
+# Only run on branch checkout (not file checkout)
+if [ $BRANCH_CHECKOUT -eq 1 ]; then
+  # Check if package.json or pnpm-lock.yaml changed
+  if git diff --name-only $PREV_COMMIT $POST_COMMIT | grep -qE 'package.json|pnpm-lock.yaml'; then
+    echo "📦 Dependencies changed, running pnpm install..."
+    pnpm install
+  else
+    echo "✓ No dependency changes detected"
+  fi
+fi

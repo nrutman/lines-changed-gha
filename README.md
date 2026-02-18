@@ -151,6 +151,23 @@ The following files were excluded based on patterns: `**/generated/**`, `**/*.lo
 pnpm install
 ```
 
+#### Configure Git Hooks (Recommended)
+
+Set up automatic dependency installation for all git operations:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This configures three hooks that run `pnpm install` when dependencies change:
+
+**Git Hooks Included:**
+- **`post-checkout`** - After `git checkout` or `git switch`
+- **`post-merge`** - After `git merge` or `git pull`
+- **`post-rewrite`** - After `git rebase`
+
+All hooks are smart: they only run `pnpm install` if `package.json` or `pnpm-lock.yaml` actually changed, preventing unnecessary installations.
+
 ### Build
 
 ```bash
