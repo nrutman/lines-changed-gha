@@ -25127,11 +25127,14 @@ function generateFileDiffUrl(owner, repo, prNumber, filename) {
 // src/utils/generateCommentBody.ts
 function generateCommentBody(summary2, header, excludePatterns, owner, repo, prNumber) {
   const squares = generateDiffSquares(summary2.addedLines, summary2.removedLines);
-  const headerText = header ? `${header}
-
-${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**` : `## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**`;
   let body = `${COMMENT_IDENTIFIER}
-${headerText}
+`;
+  if (header) {
+    body += `${header}
+
+`;
+  }
+  body += `## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**
 
 `;
   const totalAddedLines = summary2.addedLines + summary2.excludedAddedLines;

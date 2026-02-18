@@ -59,17 +59,19 @@ describe('generateCommentBody', () => {
     expect(body).toContain('**-128**');
   });
 
-  it('should use custom header when provided', () => {
+  it('should prepend custom header above the summary when provided', () => {
     const body = generateCommentBody(
       createSummary(),
-      '## Custom Header',
+      '### Custom Context',
       [],
       'owner',
       'repo',
       123
     );
 
-    expect(body).toContain('## Custom Header');
+    expect(body).toContain('### Custom Context');
+    // The squares header should still be present
+    expect(body).toMatch(/## .+\*\*\+100\*\*/);
   });
 
   it('should include included files section', () => {

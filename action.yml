@@ -15,9 +15,9 @@ inputs:
     required: false
     default: ''
   comment-header:
-    description: 'Header text for the comment'
+    description: 'Optional text to display above the summary (leave empty for default)'
     required: false
-    default: '## Lines Changed Summary'
+    default: ''
 
 outputs:
   added-lines:

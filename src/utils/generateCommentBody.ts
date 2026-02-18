@@ -13,12 +13,15 @@ export function generateCommentBody(
 ): string {
   const squares = generateDiffSquares(summary.addedLines, summary.removedLines);
 
-  // Use custom header if provided, otherwise use default format
-  const headerText = header
-    ? `${header}\n\n${squares} **+${summary.addedLines}** / **-${summary.removedLines}**`
-    : `## ${squares} **+${summary.addedLines}** / **-${summary.removedLines}**`;
+  // Build comment body - icons and counts are always the main header
+  let body = `${COMMENT_IDENTIFIER}\n`;
 
-  let body = `${COMMENT_IDENTIFIER}\n${headerText}\n\n`;
+  // Add optional header text above the summary if provided
+  if (header) {
+    body += `${header}\n\n`;
+  }
+
+  body += `## ${squares} **+${summary.addedLines}** / **-${summary.removedLines}**\n\n`;
 
   const totalAddedLines = summary.addedLines + summary.excludedAddedLines;
   const totalRemovedLines = summary.removedLines + summary.excludedRemovedLines;
