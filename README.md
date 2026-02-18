@@ -11,6 +11,8 @@ This is useful when you want to get an accurate sense of the PR scope without co
 - 🔄 Updates the same comment on each run (no spam)
 - 📁 Shows excluded and included files in collapsible sections
 - 🔗 All filenames link directly to their diff in the PR
+- 📄 Handles PRs with any number of files (automatic pagination)
+- ✅ Validates glob patterns and warns about common mistakes
 - ⚡ Fast and lightweight TypeScript implementation
 
 ## Usage
@@ -62,7 +64,7 @@ jobs:
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
 | `exclude-patterns` | Comma-separated list of glob patterns to exclude | No | `''` |
-| `comment-header` | Header text for the comment | No | `## Lines Changed Summary` |
+| `comment-header` | Custom header text prepended to the summary | No | None (shows squares and counts only) |
 
 ### Pattern Matching
 
@@ -78,6 +80,11 @@ Multiple patterns can be combined with commas:
 ```yaml
 exclude-patterns: '**/generated/**,**/*.lock,**/dist/**'
 ```
+
+**Pattern Validation:** The action validates your glob patterns and warns about common mistakes:
+- Patterns starting with `/` (should be relative)
+- Patterns using backslashes instead of forward slashes
+- Invalid glob syntax
 
 ## Outputs
 

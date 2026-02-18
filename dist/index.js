@@ -19869,6 +19869,9 @@ function setFailed(message) {
 function error(message, properties = {}) {
   issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
+function warning(message, properties = {}) {
+  issueCommand("warning", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
 function info(message) {
   process.stdout.write(message + os4.EOL);
 }
@@ -25099,7 +25102,7 @@ function calculateDiffSummary(files, excludePatterns) {
 }
 
 // src/utils/constants.ts
-var COMMENT_IDENTIFIER = "<!-- lines-changed-summary -->";
+var COMMENT_IDENTIFIER = "<!-- lines-changed-gha:summary:v1 -->";
 
 // src/utils/generateDiffSquares.ts
 function generateDiffSquares(additions, deletions) {
@@ -25124,8 +25127,11 @@ function generateFileDiffUrl(owner, repo, prNumber, filename) {
 // src/utils/generateCommentBody.ts
 function generateCommentBody(summary2, header, excludePatterns, owner, repo, prNumber) {
   const squares = generateDiffSquares(summary2.addedLines, summary2.removedLines);
+  const headerText = header ? `${header}
+
+${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**` : `## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**`;
   let body = `${COMMENT_IDENTIFIER}
-## ${squares} **+${summary2.addedLines}** / **-${summary2.removedLines}**
+${headerText}
 
 `;
   const totalAddedLines = summary2.addedLines + summary2.excludedAddedLines;
@@ -25179,6 +25185,31 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
   return body;
 }
 
+// src/utils/validateGlobPatterns.ts
+function validateGlobPatterns(patterns) {
+  const errors = [];
+  for (const pattern of patterns) {
+    try {
+      new minimatch.Minimatch(pattern, { dot: true });
+      if (pattern.includes("\\") && process.platform !== "win32") {
+        errors.push(
+          `"${pattern}" contains backslashes - use forward slashes for glob patterns`
+        );
+      }
+      if (pattern.startsWith("/")) {
+        errors.push(
+          `"${pattern}" starts with / - glob patterns should be relative`
+        );
+      }
+    } catch (e) {
+      errors.push(
+        `"${pattern}" is not a valid glob pattern: ${e instanceof Error ? e.message : "unknown error"}`
+      );
+    }
+  }
+  return errors;
+}
+
 // src/main.ts
 async function run() {
   try {
@@ -25186,6 +25217,12 @@ async function run() {
     const excludePatternsInput = getInput("exclude-patterns");
     const commentHeader = getInput("comment-header");
     const excludePatterns = excludePatternsInput.split(",").map((p) => p.trim()).filter((p) => p.length > 0);
+    const patternErrors = validateGlobPatterns(excludePatterns);
+    if (patternErrors.length > 0) {
+      for (const error2 of patternErrors) {
+        warning(`Invalid exclude pattern: ${error2}`);
+      }
+    }
     const octokit = getOctokit(token);
     const context3 = context2;
     if (!context3.payload.pull_request) {
@@ -25197,7 +25234,7 @@ async function run() {
     const repo = context3.repo.repo;
     info(`Processing PR #${prNumber} in ${owner}/${repo}`);
     info(`Exclude patterns: ${excludePatterns.join(", ") || "none"}`);
-    const { data: files } = await octokit.rest.pulls.listFiles({
+    const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
       owner,
       repo,
       pull_number: prNumber,
@@ -25258,9 +25295,23 @@ async function run() {
     info("\u2713 Lines changed summary posted successfully");
   } catch (error2) {
     if (error2 instanceof Error) {
-      setFailed(error2.message);
+      if (error2.message.includes("Bad credentials")) {
+        setFailed(
+          'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.'
+        );
+      } else if (error2.message.includes("Not Found")) {
+        setFailed(
+          `Repository or PR not found. Ensure the action is running in the correct repository context.`
+        );
+      } else if (error2.message.includes("rate limit")) {
+        setFailed(
+          "GitHub API rate limit exceeded. Please wait before retrying."
+        );
+      } else {
+        setFailed(`Action failed: ${error2.message}`);
+      }
     } else {
-      setFailed("An unknown error occurred");
+      setFailed("An unexpected error occurred");
     }
   }
 }
