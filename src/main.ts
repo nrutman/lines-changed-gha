@@ -35,6 +35,7 @@ async function run(): Promise<void> {
     }
 
     const prNumber = context.payload.pull_request.number;
+    const headSha = context.payload.pull_request.head.sha as string;
     const owner = context.repo.owner;
     const repo = context.repo.repo;
 
@@ -79,7 +80,8 @@ async function run(): Promise<void> {
       ignorePatterns,
       owner,
       repo,
-      prNumber
+      prNumber,
+      headSha
     );
 
     // Find existing comment
