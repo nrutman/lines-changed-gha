@@ -25125,6 +25125,23 @@ function generateFileDiffUrl(owner, repo, prNumber, filename) {
 }
 
 // src/utils/generateCommentBody.ts
+function pluralize(count, singular, plural) {
+  return count === 1 ? singular : plural;
+}
+function calculatePercentage(part, total) {
+  return total > 0 ? Math.round(part / total * 100) : 0;
+}
+function generateFileTable(files, owner, repo, prNumber) {
+  const sortedFiles = [...files].sort((a, b) => b.changes - a.changes);
+  let table = "| File | Lines Added | Lines Removed |\n";
+  table += "|------|-------------|---------------|\n";
+  for (const file of sortedFiles) {
+    const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
+    table += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |
+`;
+  }
+  return table;
+}
 function generateCommentBody(summary2, header, excludePatterns, owner, repo, prNumber) {
   const squares = generateDiffSquares(summary2.addedLines, summary2.removedLines);
   let body = `${COMMENT_IDENTIFIER}
@@ -25142,43 +25159,27 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
   const totalChangedLines = includedChangedLines + ignoredChangedLines;
   const includedCount = summary2.includedFiles.length;
   const ignoredCount = summary2.ignoredFiles.length;
-  const includedPercentage = totalChangedLines > 0 ? Math.round(includedChangedLines / totalChangedLines * 100) : 0;
-  const ignoredPercentage = totalChangedLines > 0 ? Math.round(ignoredChangedLines / totalChangedLines * 100) : 0;
+  const includedPercentage = calculatePercentage(includedChangedLines, totalChangedLines);
+  const ignoredPercentage = calculatePercentage(ignoredChangedLines, totalChangedLines);
   if (includedCount > 0) {
-    const changedSummary = `Changed (${includedCount} ${includedCount === 1 ? "file" : "files"}, ${includedPercentage}% of changes)`;
+    const changedSummary = `Changed (${includedCount} ${pluralize(includedCount, "file", "files")}, ${includedPercentage}% of changes)`;
     body += `<details>
 <summary>${changedSummary}</summary>
 
 `;
-    body += "| File | Lines Added | Lines Removed |\n";
-    body += "|------|-------------|---------------|\n";
-    const sortedFiles = [...summary2.includedFiles].sort(
-      (a, b) => b.changes - a.changes
-    );
-    for (const file of sortedFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
-      body += `| [\`${file.filename}\`](${fileUrl}) | +${file.additions} | -${file.deletions} |
-`;
-    }
+    body += generateFileTable(summary2.includedFiles, owner, repo, prNumber);
     body += "\n</details>\n\n";
   }
   if (ignoredCount > 0) {
-    const ignoredSummary = `Ignored (${ignoredCount} ${ignoredCount === 1 ? "file" : "files"}, ${ignoredPercentage}% of changes)`;
+    const ignoredSummary = `Ignored (${ignoredCount} ${pluralize(ignoredCount, "file", "files")}, ${ignoredPercentage}% of changes)`;
     body += `<details>
 <summary>${ignoredSummary}</summary>
 
 `;
-    body += `The following files were ignored based on patterns: \`${excludePatterns.join("`, `")}\`
+    body += `Ignored patterns: \`${excludePatterns.join("`, `")}\`
 
 `;
-    body += `**Total ignored:** +${summary2.ignoredAddedLines} / -${summary2.ignoredRemovedLines} lines
-
-`;
-    for (const file of summary2.ignoredFiles) {
-      const fileUrl = generateFileDiffUrl(owner, repo, prNumber, file.filename);
-      body += `- [\`${file.filename}\`](${fileUrl})
-`;
-    }
+    body += generateFileTable(summary2.ignoredFiles, owner, repo, prNumber);
     body += "\n</details>";
   }
   body += "\n\n---\n";
