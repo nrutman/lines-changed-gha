@@ -15,7 +15,11 @@
       "Bash(pnpm run format:*)",
       "Bash(cat:*)",
       "Bash(pnpm approve-builds:*)",
-      "Bash(time pnpm run test:*)"
+      "Bash(time pnpm run test:*)",
+      "Bash(then echo \"❌ FAIL: dist is out of date\")",
+      "Bash(exit 1)",
+      "Bash(else echo \"✅ PASS: dist is up to date\")",
+      "Bash(fi)"
     ]
   }
 }
