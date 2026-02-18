@@ -33,7 +33,7 @@ function generateFileTable(
 export function generateCommentBody(
   summary: DiffSummary,
   header: string,
-  excludePatterns: string[],
+  ignorePatterns: string[],
   owner: string,
   repo: string,
   prNumber: number
@@ -77,7 +77,7 @@ export function generateCommentBody(
   if (ignoredCount > 0) {
     const ignoredSummary = `Ignored (${ignoredCount} ${pluralize(ignoredCount, 'file', 'files')}, ${ignoredPercentage}% of changes)`;
     body += `<details>\n<summary>${ignoredSummary}</summary>\n\n`;
-    body += `Ignored patterns: \`${excludePatterns.join('`, `')}\`\n\n`;
+    body += `Ignored patterns: \`${ignorePatterns.join('`, `')}\`\n\n`;
     body += generateFileTable(summary.ignoredFiles, owner, repo, prNumber);
     body += '\n</details>';
   }

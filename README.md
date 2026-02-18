@@ -1,13 +1,13 @@
 # Lines Changed Summary Action
 
-A GitHub Action that comments on pull requests with a lines changed summary (using GitHub's +/- style), with the ability to exclude files based on pattern matching.
+A GitHub Action that comments on pull requests with a lines changed summary (using GitHub's +/- style), with the ability to ignore files based on pattern matching.
 
 This is useful when you want to get an accurate sense of the PR scope without counting generated files, lock files, or other files that don't meaningfully impact review effort.
 
 ## Features
 
 - 📊 Posts a clean lines changed summary on PRs
-- 🎯 Excludes files based on configurable patterns (e.g., `**/generated/**`, `*.lock`)
+- 🎯 Ignores files based on configurable patterns (e.g., `**/generated/**`, `*.lock`)
 - 🔄 Updates the same comment on each run (no spam)
 - 📁 Shows changed and ignored files in collapsible sections
 - 🔗 All filenames link directly to their diff in the PR
@@ -35,13 +35,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Exclude Generated Files
+### Ignore Generated Files
 
 ```yaml
 - uses: nrutman/lines-changed-gha@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    exclude-patterns: |
+    ignore-patterns: |
       **/generated/**,
       **/*.generated.ts,
       **/*.lock,
@@ -54,7 +54,7 @@ jobs:
 - uses: nrutman/lines-changed-gha@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    exclude-patterns: '**/generated/**,**/*.lock'
+    ignore-patterns: '**/generated/**,**/*.lock'
     comment-header: '## 📊 Code Changes (excluding generated files)'
 ```
 
@@ -63,22 +63,22 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
-| `exclude-patterns` | Comma-separated list of glob patterns to exclude | No | `''` |
+| `ignore-patterns` | Comma-separated list of glob patterns to ignore | No | `''` |
 | `comment-header` | Custom header text prepended to the summary | No | None (shows squares and counts only) |
 
 ### Pattern Matching
 
-The `exclude-patterns` input accepts glob patterns that follow the [minimatch](https://github.com/isaacs/minimatch) syntax:
+The `ignore-patterns` input accepts glob patterns that follow the [minimatch](https://github.com/isaacs/minimatch) syntax:
 
-- `**/generated/**` - Exclude all files in any `generated` directory
-- `**/*.generated.ts` - Exclude all files ending with `.generated.ts`
-- `*.lock` - Exclude lock files in the root directory
-- `**/*.lock` - Exclude lock files anywhere
-- `**/dist/**` - Exclude all files in any `dist` directory
+- `**/generated/**` - Ignore all files in any `generated` directory
+- `**/*.generated.ts` - Ignore all files ending with `.generated.ts`
+- `*.lock` - Ignore lock files in the root directory
+- `**/*.lock` - Ignore lock files anywhere
+- `**/dist/**` - Ignore all files in any `dist` directory
 
 Multiple patterns can be combined with commas:
 ```yaml
-exclude-patterns: '**/generated/**,**/*.lock,**/dist/**'
+ignore-patterns: '**/generated/**,**/*.lock,**/dist/**'
 ```
 
 **Pattern Validation:** The action validates your glob patterns and warns about common mistakes:
@@ -90,10 +90,10 @@ exclude-patterns: '**/generated/**,**/*.lock,**/dist/**'
 
 | Output | Description |
 |--------|-------------|
-| `added-lines` | Number of lines added (excluding filtered files) |
-| `removed-lines` | Number of lines removed (excluding filtered files) |
+| `added-lines` | Number of lines added (not counting ignored files) |
+| `removed-lines` | Number of lines removed (not counting ignored files) |
 | `total-files` | Total number of files changed |
-| `excluded-files` | Number of files excluded by patterns |
+| `ignored-files` | Number of files ignored by patterns |
 
 ### Using Outputs
 
@@ -102,7 +102,7 @@ exclude-patterns: '**/generated/**,**/*.lock,**/dist/**'
   id: lines-changed
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    exclude-patterns: '**/generated/**'
+    ignore-patterns: '**/generated/**'
 
 - name: Check if PR is too large
   if: steps.lines-changed.outputs.added-lines > 500

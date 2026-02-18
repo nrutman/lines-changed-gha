@@ -25069,7 +25069,7 @@ minimatch.escape = escape;
 minimatch.unescape = unescape;
 
 // src/utils/calculateDiffSummary.ts
-function calculateDiffSummary(files, excludePatterns) {
+function calculateDiffSummary(files, ignorePatterns) {
   const includedFiles = [];
   const ignoredFiles = [];
   let addedLines = 0;
@@ -25077,7 +25077,7 @@ function calculateDiffSummary(files, excludePatterns) {
   let ignoredAddedLines = 0;
   let ignoredRemovedLines = 0;
   for (const file of files) {
-    const isIgnored = excludePatterns.some(
+    const isIgnored = ignorePatterns.some(
       (pattern) => minimatch(file.filename, pattern, { dot: true })
     );
     if (isIgnored) {
@@ -25141,7 +25141,7 @@ function generateFileTable(files, owner, repo, prNumber) {
   }
   return table;
 }
-function generateCommentBody(summary2, header, excludePatterns, owner, repo, prNumber) {
+function generateCommentBody(summary2, header, ignorePatterns, owner, repo, prNumber) {
   const squares = generateDiffSquares(summary2.addedLines, summary2.removedLines);
   let body = `${COMMENT_IDENTIFIER}
 `;
@@ -25181,7 +25181,7 @@ function generateCommentBody(summary2, header, excludePatterns, owner, repo, prN
 <summary>${ignoredSummary}</summary>
 
 `;
-    body += `Ignored patterns: \`${excludePatterns.join("`, `")}\`
+    body += `Ignored patterns: \`${ignorePatterns.join("`, `")}\`
 
 `;
     body += generateFileTable(summary2.ignoredFiles, owner, repo, prNumber);
@@ -25221,13 +25221,13 @@ function validateGlobPatterns(patterns) {
 async function run() {
   try {
     const token = getInput("github-token", { required: true });
-    const excludePatternsInput = getInput("exclude-patterns");
+    const ignorePatternsInput = getInput("ignore-patterns");
     const commentHeader = getInput("comment-header");
-    const excludePatterns = excludePatternsInput.split(",").map((p) => p.trim()).filter((p) => p.length > 0);
-    const patternErrors = validateGlobPatterns(excludePatterns);
+    const ignorePatterns = ignorePatternsInput.split(",").map((p) => p.trim()).filter((p) => p.length > 0);
+    const patternErrors = validateGlobPatterns(ignorePatterns);
     if (patternErrors.length > 0) {
       for (const error2 of patternErrors) {
-        warning(`Invalid exclude pattern: ${error2}`);
+        warning(`Invalid ignore pattern: ${error2}`);
       }
     }
     const octokit = getOctokit(token);
@@ -25240,7 +25240,7 @@ async function run() {
     const owner = context3.repo.owner;
     const repo = context3.repo.repo;
     info(`Processing PR #${prNumber} in ${owner}/${repo}`);
-    info(`Exclude patterns: ${excludePatterns.join(", ") || "none"}`);
+    info(`Ignore patterns: ${ignorePatterns.join(", ") || "none"}`);
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
       owner,
       repo,
@@ -25248,7 +25248,7 @@ async function run() {
       per_page: 100
     });
     info(`Found ${files.length} changed files`);
-    const summary2 = calculateDiffSummary(files, excludePatterns);
+    const summary2 = calculateDiffSummary(files, ignorePatterns);
     for (const file of summary2.includedFiles) {
       info(
         `\u2713 Changed: ${file.filename} (+${file.additions} -${file.deletions})`
@@ -25262,11 +25262,11 @@ async function run() {
     setOutput("added-lines", summary2.addedLines);
     setOutput("removed-lines", summary2.removedLines);
     setOutput("total-files", summary2.totalFiles);
-    setOutput("excluded-files", summary2.ignoredFiles.length);
+    setOutput("ignored-files", summary2.ignoredFiles.length);
     const commentBody = generateCommentBody(
       summary2,
       commentHeader,
-      excludePatterns,
+      ignorePatterns,
       owner,
       repo,
       prNumber

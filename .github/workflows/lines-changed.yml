@@ -18,4 +18,4 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          exclude-patterns: '**/dist/**,**/node_modules/**,pnpm-lock.yaml'
+          ignore-patterns: '**/dist/**,**/node_modules/**,pnpm-lock.yaml'

@@ -3,7 +3,7 @@ import type { FileChange, DiffSummary } from './types';
 
 export function calculateDiffSummary(
   files: FileChange[],
-  excludePatterns: string[]
+  ignorePatterns: string[]
 ): DiffSummary {
   const includedFiles: FileChange[] = [];
   const ignoredFiles: FileChange[] = [];
@@ -13,7 +13,7 @@ export function calculateDiffSummary(
   let ignoredRemovedLines = 0;
 
   for (const file of files) {
-    const isIgnored = excludePatterns.some(pattern =>
+    const isIgnored = ignorePatterns.some(pattern =>
       minimatch(file.filename, pattern, { dot: true })
     );
 
