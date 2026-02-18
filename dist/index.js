@@ -25119,9 +25119,8 @@ function generateDiffSquares(additions, deletions) {
 // src/utils/generateFileDiffUrl.ts
 var import_crypto = require("crypto");
 function generateFileDiffUrl(owner, repo, prNumber, filename) {
-  const hash = (0, import_crypto.createHash)("md5").update(filename).digest("hex");
-  const anchor = `diff-${hash.substring(0, 16)}`;
-  return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#${anchor}`;
+  const hash = (0, import_crypto.createHash)("sha256").update(filename).digest("hex");
+  return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#diff-${hash}`;
 }
 
 // src/utils/generateCommentBody.ts
