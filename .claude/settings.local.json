@@ -19,7 +19,10 @@
       "Bash(then echo \"❌ FAIL: dist is out of date\")",
       "Bash(exit 1)",
       "Bash(else echo \"✅ PASS: dist is up to date\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(pnpm check:*)",
+      "Bash(git -C /Users/nathan/Dev/lines-changed-gha status --porcelain dist/)",
+      "Bash(pnpm build:*)"
     ]
   }
 }

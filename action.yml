@@ -1,5 +1,5 @@
 name: 'Lines Changed Summary'
-description: 'Comment on PRs with a lines changed summary, excluding specified file patterns'
+description: 'Comment on PRs with a lines changed summary, ignoring specified file patterns'
 author: 'Your Name'
 branding:
   icon: 'bar-chart-2'
@@ -10,8 +10,8 @@ inputs:
     description: 'GitHub token for API access'
     required: true
     default: ${{ github.token }}
-  exclude-patterns:
-    description: 'Comma-separated list of file patterns to exclude (e.g., "**/generated/**,**/*.generated.ts")'
+  ignore-patterns:
+    description: 'Comma-separated list of file patterns to ignore (e.g., "**/generated/**,**/*.generated.ts")'
     required: false
     default: ''
   comment-header:
@@ -21,13 +21,13 @@ inputs:
 
 outputs:
   added-lines:
-    description: 'Number of lines added (excluding filtered files)'
+    description: 'Number of lines added (not counting ignored files)'
   removed-lines:
-    description: 'Number of lines removed (excluding filtered files)'
+    description: 'Number of lines removed (not counting ignored files)'
   total-files:
     description: 'Total number of files changed'
-  excluded-files:
-    description: 'Number of files excluded by patterns'
+  ignored-files:
+    description: 'Number of files ignored by patterns'
 
 runs:
   using: 'node20'

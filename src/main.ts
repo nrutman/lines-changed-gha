@@ -10,19 +10,19 @@ import {
 async function run(): Promise<void> {
   try {
     const token = core.getInput('github-token', { required: true });
-    const excludePatternsInput = core.getInput('exclude-patterns');
+    const ignorePatternsInput = core.getInput('ignore-patterns');
     const commentHeader = core.getInput('comment-header');
 
-    const excludePatterns = excludePatternsInput
+    const ignorePatterns = ignorePatternsInput
       .split(',')
       .map(p => p.trim())
       .filter(p => p.length > 0);
 
     // Validate glob patterns
-    const patternErrors = validateGlobPatterns(excludePatterns);
+    const patternErrors = validateGlobPatterns(ignorePatterns);
     if (patternErrors.length > 0) {
       for (const error of patternErrors) {
-        core.warning(`Invalid exclude pattern: ${error}`);
+        core.warning(`Invalid ignore pattern: ${error}`);
       }
     }
 
@@ -39,7 +39,7 @@ async function run(): Promise<void> {
     const repo = context.repo.repo;
 
     core.info(`Processing PR #${prNumber} in ${owner}/${repo}`);
-    core.info(`Exclude patterns: ${excludePatterns.join(', ') || 'none'}`);
+    core.info(`Ignore patterns: ${ignorePatterns.join(', ') || 'none'}`);
 
     // Get all files changed in the PR using pagination
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
@@ -52,7 +52,7 @@ async function run(): Promise<void> {
     core.info(`Found ${files.length} changed files`);
 
     // Calculate diff summary
-    const summary = calculateDiffSummary(files, excludePatterns);
+    const summary = calculateDiffSummary(files, ignorePatterns);
 
     // Log changed/ignored files
     for (const file of summary.includedFiles) {
@@ -70,13 +70,13 @@ async function run(): Promise<void> {
     core.setOutput('added-lines', summary.addedLines);
     core.setOutput('removed-lines', summary.removedLines);
     core.setOutput('total-files', summary.totalFiles);
-    core.setOutput('excluded-files', summary.ignoredFiles.length);
+    core.setOutput('ignored-files', summary.ignoredFiles.length);
 
     // Generate comment body
     const commentBody = generateCommentBody(
       summary,
       commentHeader,
-      excludePatterns,
+      ignorePatterns,
       owner,
       repo,
       prNumber

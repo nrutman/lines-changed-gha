@@ -1,7 +1,7 @@
 {
   "name": "lines-changed-action",
-  "version": "1.0.0",
-  "description": "GitHub Action to comment on PRs with lines changed summary, excluding specified file patterns",
+  "version": "2.0.0",
+  "description": "GitHub Action to comment on PRs with lines changed summary, ignoring specified file patterns",
   "main": "dist/index.js",
   "scripts": {
     "build": "node build.mjs",
