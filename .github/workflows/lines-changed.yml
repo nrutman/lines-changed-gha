@@ -22,7 +22,7 @@ jobs:
             - label: "🧪 Tests"
               patterns:
                 - "**/__tests__/**"
-              count: true
+              count: false
             - label: "📦 Build"
               patterns:
                 - "dist/**"
