@@ -117,7 +117,16 @@ async function run(): Promise<void> {
     // Set outputs
     core.setOutput('added-lines', summary.addedLines);
     core.setOutput('removed-lines', summary.removedLines);
-    core.setOutput('uncounted-added-lines', summary.uncountedAddedLines);
+
+
+
+
+
+
+
+
+
+      core.setOutput('uncounted-added-lines', summary.uncountedAddedLines);
     core.setOutput('uncounted-removed-lines', summary.uncountedRemovedLines);
     core.setOutput('total-files', summary.totalFiles);
 
