@@ -12,23 +12,33 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Comment with lines changed summary
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          ignore-whitespace: true
           file-groups: |
             - label: "🧪 Tests"
               patterns:
                 - "**/__tests__/**"
               count: false
+              ignore-whitespace: false
             - label: "📦 Build"
               patterns:
                 - "dist/**"
               count: false
+              ignore-whitespace: false
             - label: "⚙️ Generated"
               patterns:
                 - "pnpm-lock.yaml"
               count: false
+              ignore-whitespace: false
+            - label: "🛠️ Dev Tools"
+              patterns:
+                - ".claude/**"
+                - ".vscode/**"
+              count: false
+              ignore-whitespace: false
           default-group-label: '🏅 Source Code'

@@ -3,6 +3,8 @@ export { COMMENT_IDENTIFIER } from './constants';
 export { generateCommentBody } from './generateCommentBody';
 export { generateDiffSquares } from './generateDiffSquares';
 export { generateFileDiffUrl } from './generateFileDiffUrl';
+export { getGitWhitespaceDiff, parseGitNumstat } from './getGitWhitespaceDiff';
+export type { GitLineCounts } from './getGitWhitespaceDiff';
 export { parseFileGroups } from './parseFileGroups';
 export { isFileGroup } from './types';
 export type {

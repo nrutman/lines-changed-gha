@@ -14,6 +14,7 @@ This is useful when you want to get an accurate sense of the PR scope by categor
 - 🔗 All filenames link directly to their diff in the PR
 - 📃 Handles PRs with any number of files (automatic pagination)
 - ✅ Validates glob patterns and warns about common mistakes
+- 🔤 Optional whitespace-only change exclusion per group
 - ⚡ Fast and lightweight TypeScript implementation
 
 ## Usage
@@ -43,6 +44,7 @@ jobs:
 Use file groups to categorize changes and control what counts toward the main metric:
 
 ```yaml
+- uses: actions/checkout@v6  # Required when using ignore-whitespace
 - uses: nrutman/lines-changed-gha@v3
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -80,6 +82,7 @@ Use file groups to categorize changes and control what counts toward the main me
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
 | `file-groups` | YAML configuration for file groups (see below) | No | `''` |
 | `default-group-label` | Label for files not matching any group pattern | No | `'Changed'` |
+| `ignore-whitespace` | Exclude whitespace-only changes from all groups (requires `actions/checkout`) | No | `false` |
 | `comment-header` | Custom header text prepended to the summary | No | None |
 
 ### File Groups Configuration
@@ -91,8 +94,11 @@ The `file-groups` input accepts a YAML array of group definitions. Each group ha
 | `label` | Display name for this group | Yes | - |
 | `patterns` | Array of glob patterns to match files | Yes | - |
 | `count` | Whether files in this group count toward the main +/- metric | No | `true` |
+| `ignore-whitespace` | Exclude whitespace-only changes from line counts (requires `actions/checkout`) | No | `false` |
 
 **Important:** Groups are processed in order. The first matching group wins—a file cannot appear in multiple groups.
+
+> **Note:** When using `ignore-whitespace: true`, the `actions/checkout` step must run before this action so that `git diff -w` can be used. If the checkout is missing, the action falls back to GitHub API counts and logs a warning.
 
 #### Example Configuration
 
@@ -116,9 +122,32 @@ file-groups: |
       - "**/*.md"
       - "docs/**"
     count: false
+    ignore-whitespace: true
 ```
 
 Files not matching any group pattern will go into the default group (configurable via `default-group-label`, defaults to "Changed"). The default group always counts toward the main metric and is displayed first in the comment.
+
+#### Global `ignore-whitespace`
+
+The top-level `ignore-whitespace` input applies to **all** groups, including the default group. Individual groups can override this by setting `ignore-whitespace` explicitly in their YAML definition:
+
+```yaml
+- uses: actions/checkout@v6
+- uses: nrutman/lines-changed-gha@v3
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    ignore-whitespace: true  # Applies to all groups by default
+    file-groups: |
+      - label: "Source"
+        patterns:
+          - "src/**/*.ts"
+        # inherits ignore-whitespace: true from the global setting
+      - label: "Generated"
+        patterns:
+          - "**/generated/**"
+        count: false
+        ignore-whitespace: false  # Override: don't ignore whitespace for this group
+```
 
 ### Pattern Matching
 

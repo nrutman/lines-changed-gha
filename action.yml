@@ -12,8 +12,13 @@ inputs:
     default: ${{ github.token }}
   file-groups:
     description: |
-      YAML configuration for file groups. Each group has a label, patterns (glob), and count (boolean).
-      Groups are processed in order - first match wins. Example:
+      YAML configuration for file groups. Each group has a label, patterns (glob), count (boolean),
+      and ignore-whitespace (boolean). Groups are processed in order - first match wins. Example:
+        - label: "Source"
+          patterns:
+            - "src/**/*.ts"
+          count: true
+          ignore-whitespace: true
         - label: "Generated"
           patterns:
             - "**/generated/**"
@@ -23,12 +28,17 @@ inputs:
           patterns:
             - "**/*.test.ts"
           count: true
+      Note: ignore-whitespace requires actions/checkout to run before this action.
     required: false
     default: ''
   default-group-label:
     description: 'Label for files not matching any group pattern'
     required: false
     default: 'Changed'
+  ignore-whitespace:
+    description: 'Exclude whitespace-only changes from all groups. Individual groups can override this with their own ignore-whitespace setting. Requires actions/checkout.'
+    required: false
+    default: 'false'
   comment-header:
     description: 'Optional text to display above the summary (leave empty for default)'
     required: false

@@ -19821,6 +19821,7 @@ var Summary = class {
   }
 };
 var _summary = new Summary();
+var summary = _summary;
 
 // node_modules/.pnpm/@actions+core@3.0.0/node_modules/@actions/core/lib/platform.js
 var import_os2 = __toESM(require("os"), 1);
@@ -25069,7 +25070,7 @@ minimatch.escape = escape;
 minimatch.unescape = unescape;
 
 // src/utils/calculateDiffSummary.ts
-function calculateDiffSummary(files, config) {
+function calculateDiffSummary(files, config, whitespaceAdjustedCounts) {
   const groupFilesMap = /* @__PURE__ */ new Map();
   for (const group of config.groups) {
     groupFilesMap.set(group, []);
@@ -25098,20 +25099,31 @@ function calculateDiffSummary(files, config) {
   let uncountedRemovedLines = 0;
   const defaultGroupFiles = groupFilesMap.get(config.defaultGroup);
   if (defaultGroupFiles.length > 0) {
-    const defaultAddedLines = defaultGroupFiles.reduce(
-      (sum, f) => sum + f.additions,
-      0
+    const {
+      added: defaultAddedLines,
+      removed: defaultRemovedLines,
+      rawAdded: defaultRawAdded,
+      rawRemoved: defaultRawRemoved
+    } = aggregateGroupLines(
+      defaultGroupFiles,
+      config.defaultGroup.ignoreWhitespace,
+      whitespaceAdjustedCounts
     );
-    const defaultRemovedLines = defaultGroupFiles.reduce(
-      (sum, f) => sum + f.deletions,
-      0
-    );
-    groupedFiles.push({
+    const defaultEntry = {
       group: config.defaultGroup,
       files: defaultGroupFiles,
       addedLines: defaultAddedLines,
       removedLines: defaultRemovedLines
-    });
+    };
+    if (config.defaultGroup.ignoreWhitespace && whitespaceAdjustedCounts) {
+      const wsAdded = defaultRawAdded - defaultAddedLines;
+      const wsRemoved = defaultRawRemoved - defaultRemovedLines;
+      if (wsAdded > 0 || wsRemoved > 0) {
+        defaultEntry.whitespaceOnlyAddedLines = wsAdded;
+        defaultEntry.whitespaceOnlyRemovedLines = wsRemoved;
+      }
+    }
+    groupedFiles.push(defaultEntry);
     addedLines += defaultAddedLines;
     removedLines += defaultRemovedLines;
   }
@@ -25120,17 +25132,31 @@ function calculateDiffSummary(files, config) {
     if (groupFiles.length === 0) {
       continue;
     }
-    const groupAddedLines = groupFiles.reduce((sum, f) => sum + f.additions, 0);
-    const groupRemovedLines = groupFiles.reduce(
-      (sum, f) => sum + f.deletions,
-      0
+    const {
+      added: groupAddedLines,
+      removed: groupRemovedLines,
+      rawAdded,
+      rawRemoved
+    } = aggregateGroupLines(
+      groupFiles,
+      group.ignoreWhitespace,
+      whitespaceAdjustedCounts
     );
-    groupedFiles.push({
+    const groupEntry = {
       group,
       files: groupFiles,
       addedLines: groupAddedLines,
       removedLines: groupRemovedLines
-    });
+    };
+    if (group.ignoreWhitespace && whitespaceAdjustedCounts) {
+      const wsAdded = rawAdded - groupAddedLines;
+      const wsRemoved = rawRemoved - groupRemovedLines;
+      if (wsAdded > 0 || wsRemoved > 0) {
+        groupEntry.whitespaceOnlyAddedLines = wsAdded;
+        groupEntry.whitespaceOnlyRemovedLines = wsRemoved;
+      }
+    }
+    groupedFiles.push(groupEntry);
     if (group.countTowardMetric) {
       addedLines += groupAddedLines;
       removedLines += groupRemovedLines;
@@ -25147,6 +25173,20 @@ function calculateDiffSummary(files, config) {
     totalFiles: files.length,
     groupedFiles
   };
+}
+function aggregateGroupLines(files, ignoreWhitespace, whitespaceAdjustedCounts) {
+  let added = 0;
+  let removed = 0;
+  let rawAdded = 0;
+  let rawRemoved = 0;
+  for (const file of files) {
+    rawAdded += file.additions;
+    rawRemoved += file.deletions;
+    const adjusted = ignoreWhitespace && whitespaceAdjustedCounts ? whitespaceAdjustedCounts.get(file.filename) : void 0;
+    added += adjusted ? adjusted.additions : file.additions;
+    removed += adjusted ? adjusted.deletions : file.deletions;
+  }
+  return { added, removed, rawAdded, rawRemoved };
 }
 
 // src/utils/constants.ts
@@ -25197,6 +25237,9 @@ function generateCommentBody(summary2, header, owner, repo, prNumber, headSha) {
     (g) => !g.group.countTowardMetric && g.files.length > 0
   );
   const showCountIndicator = hasCountedGroups && hasUncountedGroups;
+  const showWhitespaceIndicator = summary2.groupedFiles.some(
+    (g) => g.group.ignoreWhitespace && g.files.length > 0
+  );
   const groupSections = [];
   for (const groupedFile of summary2.groupedFiles) {
     if (groupedFile.files.length > 0) {
@@ -25207,7 +25250,8 @@ function generateCommentBody(summary2, header, owner, repo, prNumber, headSha) {
           owner,
           repo,
           prNumber,
-          showCountIndicator
+          showCountIndicator,
+          showWhitespaceIndicator
         )
       );
     }
@@ -25218,6 +25262,9 @@ function generateCommentBody(summary2, header, owner, repo, prNumber, headSha) {
   body += "\n\n---\n";
   if (showCountIndicator) {
     body += "\\* *Not counted toward the main +/- metric*\n\n";
+  }
+  if (showWhitespaceIndicator) {
+    body += "\u2020 *Whitespace-only changes are excluded from counts*\n\n";
   }
   body += `*Generated by [Lines Changed](https://github.com/nrutman/lines-changed-gha) GitHub Action against [\`${shortSha}\`](${commitUrl})*`;
   return body;
@@ -25239,12 +25286,14 @@ function generateFileTable(files, owner, repo, prNumber) {
   }
   return table;
 }
-function generateGroupSection(groupedFile, totalChangedLines, owner, repo, prNumber, showCountIndicator) {
+function generateGroupSection(groupedFile, totalChangedLines, owner, repo, prNumber, showCountIndicator, showWhitespaceIndicator) {
   const fileCount = groupedFile.files.length;
   const groupChangedLines = groupedFile.addedLines + groupedFile.removedLines;
   const percentage = calculatePercentage(groupChangedLines, totalChangedLines);
+  const groupIgnoresWhitespace = groupedFile.group.ignoreWhitespace;
   const countIndicator = showCountIndicator && !groupedFile.group.countTowardMetric ? "*" : "";
-  const summaryText = `${groupedFile.group.label} (${fileCount} ${pluralize(fileCount, "file", "files")}, ${percentage}% of changes)${countIndicator}`;
+  const whitespaceIndicator = showWhitespaceIndicator && groupIgnoresWhitespace ? "\u2020" : "";
+  const summaryText = `${groupedFile.group.label} (${fileCount} ${pluralize(fileCount, "file", "files")}, ${percentage}% of changes)${countIndicator}${whitespaceIndicator}`;
   let section = `<details>
 <summary>${summaryText}</summary>
 
@@ -25254,9 +25303,87 @@ function generateGroupSection(groupedFile, totalChangedLines, owner, repo, prNum
 
 `;
   }
+  const wsAdded = groupedFile.whitespaceOnlyAddedLines ?? 0;
+  const wsRemoved = groupedFile.whitespaceOnlyRemovedLines ?? 0;
+  if (wsAdded > 0 || wsRemoved > 0) {
+    section += `*+${wsAdded} / -${wsRemoved} whitespace-only changes excluded from line counts*
+
+`;
+  }
   section += generateFileTable(groupedFile.files, owner, repo, prNumber);
   section += "\n</details>";
   return section;
+}
+
+// src/utils/getGitWhitespaceDiff.ts
+var import_child_process = require("child_process");
+var import_fs3 = require("fs");
+function parseGitNumstat(output) {
+  const result = /* @__PURE__ */ new Map();
+  for (const line of output.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split("	");
+    if (parts.length < 3) continue;
+    const [addedStr, removedStr, ...filenameParts] = parts;
+    const filename = filenameParts.join("	");
+    if (addedStr === "-" && removedStr === "-") continue;
+    const additions = parseInt(addedStr, 10);
+    const deletions = parseInt(removedStr, 10);
+    if (isNaN(additions) || isNaN(deletions)) continue;
+    let resolvedFilename = filename;
+    if (filename.includes(" => ")) {
+      const braceMatch = filename.match(/^(.*)\{.* => (.*)\}(.*)$/);
+      if (braceMatch) {
+        resolvedFilename = braceMatch[1] + braceMatch[2] + braceMatch[3];
+      } else {
+        resolvedFilename = filename.split(" => ")[1];
+      }
+    }
+    result.set(resolvedFilename, { additions, deletions });
+  }
+  return result;
+}
+var SHA_PATTERN = /^[0-9a-f]{4,40}$/i;
+function assertValidSha(value, label) {
+  if (!SHA_PATTERN.test(value)) {
+    throw new Error(`Invalid ${label}: expected a hex SHA, got "${value}"`);
+  }
+}
+async function getGitWhitespaceDiff(baseSha, headSha) {
+  if (!(0, import_fs3.existsSync)(".git")) {
+    warning(
+      "No git checkout detected. Whitespace-adjusted counts are unavailable. Add actions/checkout before this action to enable ignore-whitespace."
+    );
+    return null;
+  }
+  try {
+    assertValidSha(baseSha, "baseSha");
+    assertValidSha(headSha, "headSha");
+    try {
+      (0, import_child_process.execFileSync)("git", ["fetch", "origin", baseSha, headSha, "--depth=1"], {
+        stdio: "pipe"
+      });
+    } catch {
+    }
+    const output = (0, import_child_process.execFileSync)(
+      "git",
+      ["diff", "-w", "--numstat", `${baseSha}..${headSha}`],
+      {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        maxBuffer: 10 * 1024 * 1024
+        // 10MB buffer for large diffs
+      }
+    );
+    return parseGitNumstat(output);
+  } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : "unknown error";
+    warning(
+      `Failed to get whitespace-adjusted diff: ${message}. Falling back to GitHub API counts.`
+    );
+    return null;
+  }
 }
 
 // node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml/dist/js-yaml.mjs
@@ -27846,10 +27973,11 @@ var safeLoadAll = renamed("safeLoadAll", "loadAll");
 var safeDump = renamed("safeDump", "dump");
 
 // src/utils/parseFileGroups.ts
-function parseFileGroups(fileGroupsYaml, defaultGroupLabel) {
+function parseFileGroups(fileGroupsYaml, defaultGroupLabel, globalIgnoreWhitespace = false) {
   const defaultGroup = {
     label: defaultGroupLabel || "Changed",
-    countTowardMetric: true
+    countTowardMetric: true,
+    ignoreWhitespace: globalIgnoreWhitespace
   };
   if (!fileGroupsYaml || fileGroupsYaml.trim() === "") {
     return {
@@ -27902,10 +28030,20 @@ function parseFileGroups(fileGroupsYaml, defaultGroupLabel) {
       }
       countTowardMetric = raw.count;
     }
+    let ignoreWhitespace = globalIgnoreWhitespace;
+    if (raw["ignore-whitespace"] !== void 0) {
+      if (typeof raw["ignore-whitespace"] !== "boolean") {
+        throw new Error(
+          `Group ${groupNum} ("${raw.label}"): 'ignore-whitespace' must be a boolean (true or false)`
+        );
+      }
+      ignoreWhitespace = raw["ignore-whitespace"];
+    }
     groups.push({
       label: raw.label.trim(),
       patterns,
-      countTowardMetric
+      countTowardMetric,
+      ignoreWhitespace
     });
   }
   return {
@@ -27945,10 +28083,15 @@ async function run() {
     const token = getInput("github-token", { required: true });
     const fileGroupsYaml = getInput("file-groups");
     const defaultGroupLabel = getInput("default-group-label") || "Changed";
+    const globalIgnoreWhitespace = getInput("ignore-whitespace") === "true";
     const commentHeader = getInput("comment-header");
     let config;
     try {
-      config = parseFileGroups(fileGroupsYaml, defaultGroupLabel);
+      config = parseFileGroups(
+        fileGroupsYaml,
+        defaultGroupLabel,
+        globalIgnoreWhitespace
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : "unknown error";
       setFailed(`Failed to parse file-groups configuration: ${message}`);
@@ -27967,6 +28110,7 @@ async function run() {
       return;
     }
     const prNumber = context3.payload.pull_request.number;
+    const baseSha = context3.payload.pull_request.base.sha;
     const headSha = context3.payload.pull_request.head.sha;
     const owner = context3.repo.owner;
     const repo = context3.repo.repo;
@@ -27980,7 +28124,7 @@ async function run() {
       }
     }
     info(
-      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}`
+      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}, ignoreWhitespace=${config.defaultGroup.ignoreWhitespace}`
     );
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
       owner,
@@ -27989,7 +28133,22 @@ async function run() {
       per_page: 100
     });
     info(`Found ${files.length} changed files`);
-    const summary2 = calculateDiffSummary(files, config);
+    const hasIgnoreWhitespace = config.defaultGroup.ignoreWhitespace || config.groups.some((g) => g.ignoreWhitespace);
+    let whitespaceAdjustedCounts = null;
+    if (hasIgnoreWhitespace) {
+      info("Groups with ignore-whitespace detected, running git diff -w");
+      whitespaceAdjustedCounts = await getGitWhitespaceDiff(baseSha, headSha);
+      if (whitespaceAdjustedCounts) {
+        info(
+          `Got whitespace-adjusted counts for ${whitespaceAdjustedCounts.size} files`
+        );
+      }
+    }
+    const summary2 = calculateDiffSummary(
+      files,
+      config,
+      whitespaceAdjustedCounts
+    );
     for (const groupedFile of summary2.groupedFiles) {
       const countIndicator = groupedFile.group.countTowardMetric ? "\u2713" : "\u25CB (not counted)";
       info(`${countIndicator} ${groupedFile.group.label}:`);
@@ -28012,6 +28171,7 @@ async function run() {
       prNumber,
       headSha
     );
+    await summary.addRaw(commentBody).write();
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,
       repo,
@@ -28039,26 +28199,20 @@ async function run() {
     }
     info("\u2713 Lines changed summary posted successfully");
   } catch (error2) {
-    if (error2 instanceof Error) {
-      if (error2.message.includes("Bad credentials")) {
-        setFailed(
-          'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.'
-        );
-      } else if (error2.message.includes("Not Found")) {
-        setFailed(
-          `Repository or PR not found. Ensure the action is running in the correct repository context.`
-        );
-      } else if (error2.message.includes("rate limit")) {
-        setFailed(
-          "GitHub API rate limit exceeded. Please wait before retrying."
-        );
-      } else {
-        setFailed(`Action failed: ${error2.message}`);
-      }
-    } else {
-      setFailed("An unexpected error occurred");
+    setFailed(getFailureReason(error2));
+  }
+}
+function getFailureReason(error2) {
+  if (error2 instanceof Error) {
+    if (error2.message.includes("Bad credentials")) {
+      return 'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.';
+    } else if (error2.message.includes("Not Found")) {
+      return "Repository or PR not found. Ensure the action is running in the correct repository context.";
+    } else if (error2.message.includes("rate limit")) {
+      return "GitHub API rate limit exceeded. Please wait before retrying.";
     }
   }
+  return "An unexpected error occurred";
 }
 run();
 /*! Bundled license information:
