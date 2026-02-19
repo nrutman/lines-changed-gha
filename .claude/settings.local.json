@@ -23,8 +23,7 @@
       "Bash(pnpm check:*)",
       "Bash(git -C /Users/nathan/Dev/lines-changed-gha status --porcelain dist/)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm format:*)",
-      "WebSearch"
+      "Bash(pnpm format:*)"
     ]
   }
 }
