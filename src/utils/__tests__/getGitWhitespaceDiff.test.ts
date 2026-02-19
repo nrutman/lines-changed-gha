@@ -3,7 +3,7 @@ import { parseGitNumstat, getGitWhitespaceDiff } from '../getGitWhitespaceDiff';
 
 // Mock child_process and fs
 vi.mock('child_process', () => ({
-  execSync: vi.fn(),
+  execFileSync: vi.fn(),
 }));
 
 vi.mock('fs', () => ({
@@ -14,11 +14,11 @@ vi.mock('@actions/core', () => ({
   warning: vi.fn(),
 }));
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import * as core from '@actions/core';
 
-const mockedExecSync = vi.mocked(execSync);
+const mockedExecFileSync = vi.mocked(execFileSync);
 const mockedExistsSync = vi.mocked(existsSync);
 
 describe('parseGitNumstat', () => {
@@ -102,13 +102,13 @@ describe('getGitWhitespaceDiff', () => {
 
   it('should return parsed numstat on success', async () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedExecSync
+    mockedExecFileSync
       .mockImplementationOnce(() => Buffer.from('')) // fetch
       .mockImplementationOnce(
         () => '10\t5\tsrc/main.ts\n20\t3\tsrc/utils.ts\n'
       ); // diff
 
-    const result = await getGitWhitespaceDiff('base123', 'head456');
+    const result = await getGitWhitespaceDiff('abc1234', 'def5678');
 
     expect(result).not.toBeNull();
     expect(result!.size).toBe(2);
@@ -120,13 +120,13 @@ describe('getGitWhitespaceDiff', () => {
 
   it('should still succeed when fetch fails', async () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedExecSync
+    mockedExecFileSync
       .mockImplementationOnce(() => {
         throw new Error('fetch failed');
       }) // fetch fails
       .mockImplementationOnce(() => '10\t5\tsrc/main.ts\n'); // diff succeeds
 
-    const result = await getGitWhitespaceDiff('base123', 'head456');
+    const result = await getGitWhitespaceDiff('abc1234', 'def5678');
 
     expect(result).not.toBeNull();
     expect(result!.size).toBe(1);
@@ -134,13 +134,13 @@ describe('getGitWhitespaceDiff', () => {
 
   it('should return null when git diff fails', async () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedExecSync
+    mockedExecFileSync
       .mockImplementationOnce(() => Buffer.from('')) // fetch
       .mockImplementationOnce(() => {
         throw new Error('diff failed');
       }); // diff fails
 
-    const result = await getGitWhitespaceDiff('base123', 'head456');
+    const result = await getGitWhitespaceDiff('abc1234', 'def5678');
 
     expect(result).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(
@@ -150,19 +150,43 @@ describe('getGitWhitespaceDiff', () => {
 
   it('should call git with correct arguments', async () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedExecSync
+    mockedExecFileSync
       .mockImplementationOnce(() => Buffer.from(''))
       .mockImplementationOnce(() => '');
 
     await getGitWhitespaceDiff('abc123', 'def456');
 
-    expect(mockedExecSync).toHaveBeenCalledWith(
-      'git fetch origin abc123 def456 --depth=1',
+    expect(mockedExecFileSync).toHaveBeenCalledWith(
+      'git',
+      ['fetch', 'origin', 'abc123', 'def456', '--depth=1'],
       expect.any(Object)
     );
-    expect(mockedExecSync).toHaveBeenCalledWith(
-      'git diff -w --numstat abc123..def456',
+    expect(mockedExecFileSync).toHaveBeenCalledWith(
+      'git',
+      ['diff', '-w', '--numstat', 'abc123..def456'],
       expect.any(Object)
+    );
+  });
+
+  it('should reject invalid baseSha', async () => {
+    mockedExistsSync.mockReturnValue(true);
+
+    const result = await getGitWhitespaceDiff('abc123; rm -rf /', 'def456');
+
+    expect(result).toBeNull();
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid baseSha')
+    );
+  });
+
+  it('should reject invalid headSha', async () => {
+    mockedExistsSync.mockReturnValue(true);
+
+    const result = await getGitWhitespaceDiff('abc123', '../etc/passwd');
+
+    expect(result).toBeNull();
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid headSha')
     );
   });
 });

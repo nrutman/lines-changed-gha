@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 
 /**
@@ -59,6 +59,18 @@ export function parseGitNumstat(output: string): Map<string, GitLineCounts> {
   return result;
 }
 
+const SHA_PATTERN = /^[0-9a-f]{4,40}$/i;
+
+/**
+ * Validates that a string looks like a hex commit SHA.
+ * Rejects anything that could be used for command injection.
+ */
+function assertValidSha(value: string, label: string): void {
+  if (!SHA_PATTERN.test(value)) {
+    throw new Error(`Invalid ${label}: expected a hex SHA, got "${value}"`);
+  }
+}
+
 /**
  * Runs `git diff -w --numstat` between two commits to get whitespace-adjusted line counts.
  *
@@ -83,20 +95,27 @@ export async function getGitWhitespaceDiff(
   }
 
   try {
+    // Validate SHAs before passing to any subprocess
+    assertValidSha(baseSha, 'baseSha');
+    assertValidSha(headSha, 'headSha');
     // Ensure the commits are available (shallow clones may not have them)
     try {
-      execSync(`git fetch origin ${baseSha} ${headSha} --depth=1`, {
+      execFileSync('git', ['fetch', 'origin', baseSha, headSha, '--depth=1'], {
         stdio: 'pipe',
       });
     } catch {
       // Ignore fetch errors - commits may already be available
     }
 
-    const output = execSync(`git diff -w --numstat ${baseSha}..${headSha}`, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
-    });
+    const output = execFileSync(
+      'git',
+      ['diff', '-w', '--numstat', `${baseSha}..${headSha}`],
+      {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
+      }
+    );
 
     return parseGitNumstat(output);
   } catch (error) {

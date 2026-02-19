@@ -25344,6 +25344,12 @@ function parseGitNumstat(output) {
   }
   return result;
 }
+var SHA_PATTERN = /^[0-9a-f]{4,40}$/i;
+function assertValidSha(value, label) {
+  if (!SHA_PATTERN.test(value)) {
+    throw new Error(`Invalid ${label}: expected a hex SHA, got "${value}"`);
+  }
+}
 async function getGitWhitespaceDiff(baseSha, headSha) {
   if (!(0, import_fs3.existsSync)(".git")) {
     warning(
@@ -25352,18 +25358,24 @@ async function getGitWhitespaceDiff(baseSha, headSha) {
     return null;
   }
   try {
+    assertValidSha(baseSha, "baseSha");
+    assertValidSha(headSha, "headSha");
     try {
-      (0, import_child_process.execSync)(`git fetch origin ${baseSha} ${headSha} --depth=1`, {
+      (0, import_child_process.execFileSync)("git", ["fetch", "origin", baseSha, headSha, "--depth=1"], {
         stdio: "pipe"
       });
     } catch {
     }
-    const output = (0, import_child_process.execSync)(`git diff -w --numstat ${baseSha}..${headSha}`, {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-      maxBuffer: 10 * 1024 * 1024
-      // 10MB buffer for large diffs
-    });
+    const output = (0, import_child_process.execFileSync)(
+      "git",
+      ["diff", "-w", "--numstat", `${baseSha}..${headSha}`],
+      {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        maxBuffer: 10 * 1024 * 1024
+        // 10MB buffer for large diffs
+      }
+    );
     return parseGitNumstat(output);
   } catch (error2) {
     const message = error2 instanceof Error ? error2.message : "unknown error";
