@@ -38,6 +38,7 @@ jobs:
             - label: "🛠️ Dev Tools"
               patterns:
                 - ".claude/**"
+                - ".vscode/**"
               count: false
               ignore-whitespace: false
           default-group-label: '🏅 Source Code'
