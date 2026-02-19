@@ -14,7 +14,7 @@ This is useful when you want to get an accurate sense of the PR scope by categor
 - 🔗 All filenames link directly to their diff in the PR
 - 📃 Handles PRs with any number of files (automatic pagination)
 - ✅ Validates glob patterns and warns about common mistakes
-- 🔤 Optional whitespace-only change exclusion per group (via `git diff -w`)
+- 🔤 Optional whitespace-only change exclusion per group
 - ⚡ Fast and lightweight TypeScript implementation
 
 ## Usage
@@ -82,7 +82,7 @@ Use file groups to categorize changes and control what counts toward the main me
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
 | `file-groups` | YAML configuration for file groups (see below) | No | `''` |
 | `default-group-label` | Label for files not matching any group pattern | No | `'Changed'` |
-| `ignore-whitespace` | Exclude whitespace-only changes from all groups (requires `actions/checkout`) | No | `'false'` |
+| `ignore-whitespace` | Exclude whitespace-only changes from all groups (requires `actions/checkout`) | No | `false` |
 | `comment-header` | Custom header text prepended to the summary | No | None |
 
 ### File Groups Configuration
@@ -136,7 +136,7 @@ The top-level `ignore-whitespace` input applies to **all** groups, including the
 - uses: nrutman/lines-changed-gha@v3
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    ignore-whitespace: 'true'  # Applies to all groups by default
+    ignore-whitespace: true  # Applies to all groups by default
     file-groups: |
       - label: "Source"
         patterns:
