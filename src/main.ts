@@ -149,6 +149,7 @@ async function run(): Promise<void> {
     // Create or update comment
     if (existingComment) {
       core.info(`Updating existing comment (ID: ${existingComment.id})`);
+
       await octokit.rest.issues.updateComment({
         owner,
         repo,
@@ -157,6 +158,7 @@ async function run(): Promise<void> {
       });
     } else {
       core.info('Creating new comment');
+
       await octokit.rest.issues.createComment({
         owner,
         repo,
@@ -167,27 +169,22 @@ async function run(): Promise<void> {
 
     core.info('✓ Lines changed summary posted successfully');
   } catch (error) {
-    if (error instanceof Error) {
-      // Provide more context for common error types
-      if (error.message.includes('Bad credentials')) {
-        core.setFailed(
-          'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.'
-        );
-      } else if (error.message.includes('Not Found')) {
-        core.setFailed(
-          `Repository or PR not found. Ensure the action is running in the correct repository context.`
-        );
-      } else if (error.message.includes('rate limit')) {
-        core.setFailed(
-          'GitHub API rate limit exceeded. Please wait before retrying.'
-        );
-      } else {
-        core.setFailed(`Action failed: ${error.message}`);
-      }
-    } else {
-      core.setFailed('An unexpected error occurred');
+    core.setFailed(getFailureReason(error));
+  }
+}
+
+function getFailureReason(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes('Bad credentials')) {
+      return 'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.';
+    } else if (error.message.includes('Not Found')) {
+      return 'Repository or PR not found. Ensure the action is running in the correct repository context.';
+    } else if (error.message.includes('rate limit')) {
+      return 'GitHub API rate limit exceeded. Please wait before retrying.';
     }
   }
+
+  return 'An unexpected error occurred';
 }
 
 run();
