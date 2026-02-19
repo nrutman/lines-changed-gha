@@ -31,9 +31,6 @@ export function calculateDiffSummary(
   }
   groupFilesMap.set(config.defaultGroup, []);
 
-  // Track which files have been assigned
-  const assignedFiles = new Set<string>();
-
   // Process each file against groups in order
   for (const file of files) {
     let matched = false;
@@ -47,7 +44,6 @@ export function calculateDiffSummary(
 
       if (matches) {
         groupFilesMap.get(group)!.push(file);
-        assignedFiles.add(file.filename);
         matched = true;
         break; // First match wins, don't check other groups
       }
@@ -60,13 +56,38 @@ export function calculateDiffSummary(
   }
 
   // Build grouped files results
+  // Default group is rendered first, then defined groups in order
   const groupedFiles: GroupedFiles[] = [];
   let addedLines = 0;
   let removedLines = 0;
   let uncountedAddedLines = 0;
   let uncountedRemovedLines = 0;
 
-  // Process defined groups first (in order)
+  // Process default group first (always rendered at top)
+  const defaultGroupFiles = groupFilesMap.get(config.defaultGroup)!;
+  if (defaultGroupFiles.length > 0) {
+    const defaultAddedLines = defaultGroupFiles.reduce(
+      (sum, f) => sum + f.additions,
+      0
+    );
+    const defaultRemovedLines = defaultGroupFiles.reduce(
+      (sum, f) => sum + f.deletions,
+      0
+    );
+
+    groupedFiles.push({
+      group: config.defaultGroup,
+      files: defaultGroupFiles,
+      addedLines: defaultAddedLines,
+      removedLines: defaultRemovedLines,
+    });
+
+    // Default group always counts toward the metric
+    addedLines += defaultAddedLines;
+    removedLines += defaultRemovedLines;
+  }
+
+  // Process defined groups in order
   for (const group of config.groups) {
     const groupFiles = groupFilesMap.get(group)!;
     if (groupFiles.length === 0) {
@@ -92,34 +113,6 @@ export function calculateDiffSummary(
     } else {
       uncountedAddedLines += groupAddedLines;
       uncountedRemovedLines += groupRemovedLines;
-    }
-  }
-
-  // Process default group last
-  const defaultGroupFiles = groupFilesMap.get(config.defaultGroup)!;
-  if (defaultGroupFiles.length > 0) {
-    const defaultAddedLines = defaultGroupFiles.reduce(
-      (sum, f) => sum + f.additions,
-      0
-    );
-    const defaultRemovedLines = defaultGroupFiles.reduce(
-      (sum, f) => sum + f.deletions,
-      0
-    );
-
-    groupedFiles.push({
-      group: config.defaultGroup,
-      files: defaultGroupFiles,
-      addedLines: defaultAddedLines,
-      removedLines: defaultRemovedLines,
-    });
-
-    if (config.defaultGroup.countTowardMetric) {
-      addedLines += defaultAddedLines;
-      removedLines += defaultRemovedLines;
-    } else {
-      uncountedAddedLines += defaultAddedLines;
-      uncountedRemovedLines += defaultRemovedLines;
     }
   }
 

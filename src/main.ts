@@ -26,11 +26,10 @@ async function run(): Promise<void> {
     }
 
     // Validate glob patterns from all groups
-    const allPatterns = config.groups.flatMap(g => g.patterns);
-    const patternErrors = validateGlobPatterns(allPatterns);
-    if (patternErrors.length > 0) {
+    for (const group of config.groups) {
+      const patternErrors = validateGlobPatterns(group.patterns);
       for (const error of patternErrors) {
-        core.warning(`Invalid pattern: ${error}`);
+        core.warning(`Invalid pattern in group "${group.label}": ${error}`);
       }
     }
 

@@ -118,7 +118,7 @@ file-groups: |
     count: false
 ```
 
-Files not matching any group pattern will go into the default group (configurable via `default-group-label`, defaults to "Changed"). The default group always counts toward the main metric.
+Files not matching any group pattern will go into the default group (configurable via `default-group-label`, defaults to "Changed"). The default group always counts toward the main metric and is displayed first in the comment.
 
 ### Pattern Matching
 

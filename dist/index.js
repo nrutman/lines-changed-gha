@@ -25075,7 +25075,6 @@ function calculateDiffSummary(files, config) {
     groupFilesMap.set(group, []);
   }
   groupFilesMap.set(config.defaultGroup, []);
-  const assignedFiles = /* @__PURE__ */ new Set();
   for (const file of files) {
     let matched = false;
     for (const group of config.groups) {
@@ -25084,7 +25083,6 @@ function calculateDiffSummary(files, config) {
       );
       if (matches) {
         groupFilesMap.get(group).push(file);
-        assignedFiles.add(file.filename);
         matched = true;
         break;
       }
@@ -25098,6 +25096,25 @@ function calculateDiffSummary(files, config) {
   let removedLines = 0;
   let uncountedAddedLines = 0;
   let uncountedRemovedLines = 0;
+  const defaultGroupFiles = groupFilesMap.get(config.defaultGroup);
+  if (defaultGroupFiles.length > 0) {
+    const defaultAddedLines = defaultGroupFiles.reduce(
+      (sum, f) => sum + f.additions,
+      0
+    );
+    const defaultRemovedLines = defaultGroupFiles.reduce(
+      (sum, f) => sum + f.deletions,
+      0
+    );
+    groupedFiles.push({
+      group: config.defaultGroup,
+      files: defaultGroupFiles,
+      addedLines: defaultAddedLines,
+      removedLines: defaultRemovedLines
+    });
+    addedLines += defaultAddedLines;
+    removedLines += defaultRemovedLines;
+  }
   for (const group of config.groups) {
     const groupFiles = groupFilesMap.get(group);
     if (groupFiles.length === 0) {
@@ -25120,30 +25137,6 @@ function calculateDiffSummary(files, config) {
     } else {
       uncountedAddedLines += groupAddedLines;
       uncountedRemovedLines += groupRemovedLines;
-    }
-  }
-  const defaultGroupFiles = groupFilesMap.get(config.defaultGroup);
-  if (defaultGroupFiles.length > 0) {
-    const defaultAddedLines = defaultGroupFiles.reduce(
-      (sum, f) => sum + f.additions,
-      0
-    );
-    const defaultRemovedLines = defaultGroupFiles.reduce(
-      (sum, f) => sum + f.deletions,
-      0
-    );
-    groupedFiles.push({
-      group: config.defaultGroup,
-      files: defaultGroupFiles,
-      addedLines: defaultAddedLines,
-      removedLines: defaultRemovedLines
-    });
-    if (config.defaultGroup.countTowardMetric) {
-      addedLines += defaultAddedLines;
-      removedLines += defaultRemovedLines;
-    } else {
-      uncountedAddedLines += defaultAddedLines;
-      uncountedRemovedLines += defaultRemovedLines;
     }
   }
   return {
@@ -25176,6 +25169,11 @@ var import_crypto = require("crypto");
 function generateFileDiffUrl(owner, repo, prNumber, filename) {
   const hash = (0, import_crypto.createHash)("sha256").update(filename).digest("hex");
   return `https://github.com/${owner}/${repo}/pull/${prNumber}/files#diff-${hash}`;
+}
+
+// src/utils/types.ts
+function isFileGroup(group) {
+  return "patterns" in group;
 }
 
 // src/utils/generateCommentBody.ts
@@ -25248,7 +25246,7 @@ function generateGroupSection(groupedFile, totalChangedLines, owner, repo, prNum
 <summary>${summaryText}</summary>
 
 `;
-  if ("patterns" in groupedFile.group) {
+  if (isFileGroup(groupedFile.group)) {
     section += `Patterns: \`${groupedFile.group.patterns.join("`, `")}\`
 
 `;
@@ -27953,11 +27951,10 @@ async function run() {
       setFailed(`Failed to parse file-groups configuration: ${message}`);
       return;
     }
-    const allPatterns = config.groups.flatMap((g) => g.patterns);
-    const patternErrors = validateGlobPatterns(allPatterns);
-    if (patternErrors.length > 0) {
+    for (const group of config.groups) {
+      const patternErrors = validateGlobPatterns(group.patterns);
       for (const error2 of patternErrors) {
-        warning(`Invalid pattern: ${error2}`);
+        warning(`Invalid pattern in group "${group.label}": ${error2}`);
       }
     }
     const octokit = getOctokit(token);

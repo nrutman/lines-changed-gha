@@ -2,6 +2,7 @@ import { COMMENT_IDENTIFIER } from './constants';
 import { generateDiffSquares } from './generateDiffSquares';
 import { generateFileDiffUrl } from './generateFileDiffUrl';
 import type { DiffSummary, FileChange, GroupedFiles } from './types';
+import { isFileGroup } from './types';
 
 export function generateCommentBody(
   summary: DiffSummary,
@@ -117,8 +118,8 @@ function generateGroupSection(
 
   let section = `<details>\n<summary>${summaryText}</summary>\n\n`;
 
-  // Show patterns if this is a FileGroup (has patterns property)
-  if ('patterns' in groupedFile.group) {
+  // Show patterns if this is a FileGroup (not the default group)
+  if (isFileGroup(groupedFile.group)) {
     section += `Patterns: \`${groupedFile.group.patterns.join('`, `')}\`\n\n`;
   }
 

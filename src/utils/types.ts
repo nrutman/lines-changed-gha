@@ -27,8 +27,17 @@ export interface FileGroup {
 export interface DefaultGroupConfig {
   /** Display label for the default group */
   label: string;
-  /** Whether files in the default group count toward the main +/- metric */
-  countTowardMetric: boolean;
+  /** Whether files in the default group count toward the main +/- metric (always true) */
+  countTowardMetric: true;
+}
+
+/**
+ * Type guard to check if a group config is a FileGroup (has patterns) vs DefaultGroupConfig
+ */
+export function isFileGroup(
+  group: FileGroup | DefaultGroupConfig
+): group is FileGroup {
+  return 'patterns' in group;
 }
 
 /**
@@ -69,6 +78,6 @@ export interface DiffSummary {
   uncountedRemovedLines: number;
   /** Total number of files across all groups */
   totalFiles: number;
-  /** Files organized by group (in group processing order, default group last) */
+  /** Files organized by group (default group first, then defined groups in order) */
   groupedFiles: GroupedFiles[];
 }

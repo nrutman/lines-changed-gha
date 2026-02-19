@@ -140,7 +140,7 @@ describe('calculateDiffSummary', () => {
       ]);
     });
 
-    it('should maintain group order with default group last', () => {
+    it('should maintain group order with default group first', () => {
       const files = [
         file('src/main.ts', 100, 50),
         file('test/main.test.ts', 30, 10),
@@ -156,9 +156,9 @@ describe('calculateDiffSummary', () => {
       );
 
       expect(result.groupedFiles.map(g => g.group.label)).toEqual([
+        'Changed',
         'Tests',
         'Documentation',
-        'Changed',
       ]);
     });
   });
@@ -311,12 +311,12 @@ describe('calculateDiffSummary', () => {
         )
       );
 
-      // Verify group assignment
+      // Verify group assignment (default group first, then defined groups in order)
       expect(result.groupedFiles.map(g => g.group.label)).toEqual([
+        '🏅 Source Code',
         '🧪 Tests',
         '📦 Build',
         '⚙️ Generated',
-        '🏅 Source Code',
       ]);
 
       // Verify counts
