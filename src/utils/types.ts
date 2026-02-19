@@ -31,6 +31,8 @@ export interface DefaultGroupConfig {
   label: string;
   /** Whether files in the default group count toward the main +/- metric (always true) */
   countTowardMetric: true;
+  /** Whether to exclude whitespace-only changes from line counts */
+  ignoreWhitespace: boolean;
 }
 
 /**
@@ -64,6 +66,10 @@ export interface GroupedFiles {
   addedLines: number;
   /** Total lines removed in this group */
   removedLines: number;
+  /** Lines added that were whitespace-only (excluded from group totals) */
+  whitespaceOnlyAddedLines?: number;
+  /** Lines removed that were whitespace-only (excluded from group totals) */
+  whitespaceOnlyRemovedLines?: number;
 }
 
 /**

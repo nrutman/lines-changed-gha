@@ -42,7 +42,7 @@ export function generateCommentBody(
 
   // Determine if any group uses ignore-whitespace
   const showWhitespaceIndicator = summary.groupedFiles.some(
-    g => isFileGroup(g.group) && g.group.ignoreWhitespace && g.files.length > 0
+    g => g.group.ignoreWhitespace && g.files.length > 0
   );
 
   // Generate sections for each group with files
@@ -125,8 +125,7 @@ function generateGroupSection(
   const groupChangedLines = groupedFile.addedLines + groupedFile.removedLines;
   const percentage = calculatePercentage(groupChangedLines, totalChangedLines);
 
-  const groupIgnoresWhitespace =
-    isFileGroup(groupedFile.group) && groupedFile.group.ignoreWhitespace;
+  const groupIgnoresWhitespace = groupedFile.group.ignoreWhitespace;
 
   // Build the summary line with optional markers
   const countIndicator =
@@ -140,6 +139,13 @@ function generateGroupSection(
   // Show patterns if this is a FileGroup (not the default group)
   if (isFileGroup(groupedFile.group)) {
     section += `Patterns: \`${groupedFile.group.patterns.join('`, `')}\`\n\n`;
+  }
+
+  // Show whitespace-only excluded counts when available
+  const wsAdded = groupedFile.whitespaceOnlyAddedLines ?? 0;
+  const wsRemoved = groupedFile.whitespaceOnlyRemovedLines ?? 0;
+  if (wsAdded > 0 || wsRemoved > 0) {
+    section += `*+${wsAdded} / -${wsRemoved} whitespace-only changes excluded from group counts*\n\n`;
   }
 
   section += generateFileTable(groupedFile.files, owner, repo, prNumber);

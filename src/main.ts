@@ -14,12 +14,18 @@ async function run(): Promise<void> {
     const token = core.getInput('github-token', { required: true });
     const fileGroupsYaml = core.getInput('file-groups');
     const defaultGroupLabel = core.getInput('default-group-label') || 'Changed';
+    const globalIgnoreWhitespace =
+      core.getInput('ignore-whitespace') === 'true';
     const commentHeader = core.getInput('comment-header');
 
     // Parse file groups configuration
     let config;
     try {
-      config = parseFileGroups(fileGroupsYaml, defaultGroupLabel);
+      config = parseFileGroups(
+        fileGroupsYaml,
+        defaultGroupLabel,
+        globalIgnoreWhitespace
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : 'unknown error';
       core.setFailed(`Failed to parse file-groups configuration: ${message}`);
@@ -60,7 +66,7 @@ async function run(): Promise<void> {
       }
     }
     core.info(
-      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}`
+      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}, ignoreWhitespace=${config.defaultGroup.ignoreWhitespace}`
     );
 
     // Get all files changed in the PR using pagination
@@ -74,7 +80,9 @@ async function run(): Promise<void> {
     core.info(`Found ${files.length} changed files`);
 
     // Get whitespace-adjusted counts if any group uses ignore-whitespace
-    const hasIgnoreWhitespace = config.groups.some(g => g.ignoreWhitespace);
+    const hasIgnoreWhitespace =
+      config.defaultGroup.ignoreWhitespace ||
+      config.groups.some(g => g.ignoreWhitespace);
     let whitespaceAdjustedCounts = null;
     if (hasIgnoreWhitespace) {
       core.info('Groups with ignore-whitespace detected, running git diff -w');

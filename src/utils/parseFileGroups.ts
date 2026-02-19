@@ -11,11 +11,13 @@ import type { DefaultGroupConfig, FileGroup, FileGroupsConfig } from './types';
  */
 export function parseFileGroups(
   fileGroupsYaml: string,
-  defaultGroupLabel: string
+  defaultGroupLabel: string,
+  globalIgnoreWhitespace = false
 ): FileGroupsConfig {
   const defaultGroup: DefaultGroupConfig = {
     label: defaultGroupLabel || 'Changed',
     countTowardMetric: true,
+    ignoreWhitespace: globalIgnoreWhitespace,
   };
 
   // If no groups defined, return config with just the default group
@@ -89,8 +91,8 @@ export function parseFileGroups(
       countTowardMetric = raw.count;
     }
 
-    // Validate ignore-whitespace (defaults to false if not specified)
-    let ignoreWhitespace = false;
+    // Validate ignore-whitespace (inherits from global setting if not specified)
+    let ignoreWhitespace = globalIgnoreWhitespace;
     if (raw['ignore-whitespace'] !== undefined) {
       if (typeof raw['ignore-whitespace'] !== 'boolean') {
         throw new Error(

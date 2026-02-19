@@ -82,6 +82,7 @@ Use file groups to categorize changes and control what counts toward the main me
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
 | `file-groups` | YAML configuration for file groups (see below) | No | `''` |
 | `default-group-label` | Label for files not matching any group pattern | No | `'Changed'` |
+| `ignore-whitespace` | Exclude whitespace-only changes from all groups (requires `actions/checkout`) | No | `'false'` |
 | `comment-header` | Custom header text prepended to the summary | No | None |
 
 ### File Groups Configuration
@@ -125,6 +126,28 @@ file-groups: |
 ```
 
 Files not matching any group pattern will go into the default group (configurable via `default-group-label`, defaults to "Changed"). The default group always counts toward the main metric and is displayed first in the comment.
+
+#### Global `ignore-whitespace`
+
+The top-level `ignore-whitespace` input applies to **all** groups, including the default group. Individual groups can override this by setting `ignore-whitespace` explicitly in their YAML definition:
+
+```yaml
+- uses: actions/checkout@v6
+- uses: nrutman/lines-changed-gha@v3
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    ignore-whitespace: 'true'  # Applies to all groups by default
+    file-groups: |
+      - label: "Source"
+        patterns:
+          - "src/**/*.ts"
+        # inherits ignore-whitespace: true from the global setting
+      - label: "Generated"
+        patterns:
+          - "**/generated/**"
+        count: false
+        ignore-whitespace: false  # Override: don't ignore whitespace for this group
+```
 
 ### Pattern Matching
 

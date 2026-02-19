@@ -10,6 +10,7 @@ describe('parseFileGroups', () => {
       expect(result.defaultGroup).toEqual({
         label: 'Changed',
         countTowardMetric: true,
+        ignoreWhitespace: false,
       });
     });
 
@@ -378,6 +379,55 @@ patterns:
         'src/**/[A-Z]*.ts',
         '**/?(foo|bar).ts',
       ]);
+    });
+  });
+
+  describe('global ignoreWhitespace', () => {
+    it('should set ignoreWhitespace on default group when global is true', () => {
+      const result = parseFileGroups('', 'Changed', true);
+
+      expect(result.defaultGroup.ignoreWhitespace).toBe(true);
+    });
+
+    it('should set ignoreWhitespace false on default group when global is false', () => {
+      const result = parseFileGroups('', 'Changed', false);
+
+      expect(result.defaultGroup.ignoreWhitespace).toBe(false);
+    });
+
+    it('should inherit global ignoreWhitespace for groups that do not specify it', () => {
+      const yaml = `
+- label: "Source"
+  patterns:
+    - "src/**/*.ts"
+`;
+      const result = parseFileGroups(yaml, 'Changed', true);
+
+      expect(result.groups[0].ignoreWhitespace).toBe(true);
+    });
+
+    it('should allow group-level ignore-whitespace: false to override global true', () => {
+      const yaml = `
+- label: "Source"
+  patterns:
+    - "src/**/*.ts"
+  ignore-whitespace: false
+`;
+      const result = parseFileGroups(yaml, 'Changed', true);
+
+      expect(result.groups[0].ignoreWhitespace).toBe(false);
+    });
+
+    it('should allow group-level ignore-whitespace: true to override global false', () => {
+      const yaml = `
+- label: "Source"
+  patterns:
+    - "src/**/*.ts"
+  ignore-whitespace: true
+`;
+      const result = parseFileGroups(yaml, 'Changed', false);
+
+      expect(result.groups[0].ignoreWhitespace).toBe(true);
     });
   });
 });
