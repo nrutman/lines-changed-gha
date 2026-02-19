@@ -1,5 +1,5 @@
 name: 'Lines Changed Summary'
-description: 'Comment on PRs with a lines changed summary, ignoring specified file patterns'
+description: 'Comment on PRs with a lines changed summary, with configurable file groups'
 author: 'Your Name'
 branding:
   icon: 'bar-chart-2'
@@ -10,10 +10,25 @@ inputs:
     description: 'GitHub token for API access'
     required: true
     default: ${{ github.token }}
-  ignore-patterns:
-    description: 'Comma-separated list of file patterns to ignore (e.g., "**/generated/**,**/*.generated.ts")'
+  file-groups:
+    description: |
+      YAML configuration for file groups. Each group has a label, patterns (glob), and count (boolean).
+      Groups are processed in order - first match wins. Example:
+        - label: "Generated"
+          patterns:
+            - "**/generated/**"
+            - "**/*.generated.ts"
+          count: false
+        - label: "Tests"
+          patterns:
+            - "**/*.test.ts"
+          count: true
     required: false
     default: ''
+  default-group-label:
+    description: 'Label for files not matching any group pattern'
+    required: false
+    default: 'Changed'
   comment-header:
     description: 'Optional text to display above the summary (leave empty for default)'
     required: false
@@ -21,13 +36,15 @@ inputs:
 
 outputs:
   added-lines:
-    description: 'Number of lines added (not counting ignored files)'
+    description: 'Number of lines added (from groups with count: true)'
   removed-lines:
-    description: 'Number of lines removed (not counting ignored files)'
+    description: 'Number of lines removed (from groups with count: true)'
+  uncounted-added-lines:
+    description: 'Number of lines added (from groups with count: false)'
+  uncounted-removed-lines:
+    description: 'Number of lines removed (from groups with count: false)'
   total-files:
     description: 'Total number of files changed'
-  ignored-files:
-    description: 'Number of files ignored by patterns'
 
 runs:
   using: 'node20'

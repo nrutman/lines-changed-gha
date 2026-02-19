@@ -1,40 +1,127 @@
 import { minimatch } from 'minimatch';
-import type { FileChange, DiffSummary } from './types';
+import type {
+  DefaultGroupConfig,
+  DiffSummary,
+  FileChange,
+  FileGroup,
+  FileGroupsConfig,
+  GroupedFiles,
+} from './types';
 
+/**
+ * Calculates a diff summary by grouping files according to the provided configuration.
+ *
+ * Files are processed against groups in order - the first matching group wins.
+ * Files that don't match any group are placed in the default group.
+ *
+ * @param files - Array of file changes from the GitHub API
+ * @param config - File groups configuration
+ * @returns Summary with files organized by group and aggregated metrics
+ */
 export function calculateDiffSummary(
   files: FileChange[],
-  ignorePatterns: string[]
+  config: FileGroupsConfig
 ): DiffSummary {
-  const includedFiles: FileChange[] = [];
-  const ignoredFiles: FileChange[] = [];
+  // Initialize a map to track files for each group
+  const groupFilesMap = new Map<FileGroup | DefaultGroupConfig, FileChange[]>();
+
+  // Initialize all groups with empty arrays
+  for (const group of config.groups) {
+    groupFilesMap.set(group, []);
+  }
+  groupFilesMap.set(config.defaultGroup, []);
+
+  // Process each file against groups in order
+  for (const file of files) {
+    let matched = false;
+
+    // Try each group in order
+    for (const group of config.groups) {
+      // Check if file matches any pattern in this group
+      const matches = group.patterns.some(pattern =>
+        minimatch(file.filename, pattern, { dot: true })
+      );
+
+      if (matches) {
+        groupFilesMap.get(group)!.push(file);
+        matched = true;
+        break; // First match wins, don't check other groups
+      }
+    }
+
+    // If no group matched, add to default group
+    if (!matched) {
+      groupFilesMap.get(config.defaultGroup)!.push(file);
+    }
+  }
+
+  // Build grouped files results
+  // Default group is rendered first, then defined groups in order
+  const groupedFiles: GroupedFiles[] = [];
   let addedLines = 0;
   let removedLines = 0;
-  let ignoredAddedLines = 0;
-  let ignoredRemovedLines = 0;
+  let uncountedAddedLines = 0;
+  let uncountedRemovedLines = 0;
 
-  for (const file of files) {
-    const isIgnored = ignorePatterns.some(pattern =>
-      minimatch(file.filename, pattern, { dot: true })
+  // Process default group first (always rendered at top)
+  const defaultGroupFiles = groupFilesMap.get(config.defaultGroup)!;
+  if (defaultGroupFiles.length > 0) {
+    const defaultAddedLines = defaultGroupFiles.reduce(
+      (sum, f) => sum + f.additions,
+      0
+    );
+    const defaultRemovedLines = defaultGroupFiles.reduce(
+      (sum, f) => sum + f.deletions,
+      0
     );
 
-    if (isIgnored) {
-      ignoredFiles.push(file);
-      ignoredAddedLines += file.additions;
-      ignoredRemovedLines += file.deletions;
+    groupedFiles.push({
+      group: config.defaultGroup,
+      files: defaultGroupFiles,
+      addedLines: defaultAddedLines,
+      removedLines: defaultRemovedLines,
+    });
+
+    // Default group always counts toward the metric
+    addedLines += defaultAddedLines;
+    removedLines += defaultRemovedLines;
+  }
+
+  // Process defined groups in order
+  for (const group of config.groups) {
+    const groupFiles = groupFilesMap.get(group)!;
+    if (groupFiles.length === 0) {
+      continue; // Skip empty groups
+    }
+
+    const groupAddedLines = groupFiles.reduce((sum, f) => sum + f.additions, 0);
+    const groupRemovedLines = groupFiles.reduce(
+      (sum, f) => sum + f.deletions,
+      0
+    );
+
+    groupedFiles.push({
+      group,
+      files: groupFiles,
+      addedLines: groupAddedLines,
+      removedLines: groupRemovedLines,
+    });
+
+    if (group.countTowardMetric) {
+      addedLines += groupAddedLines;
+      removedLines += groupRemovedLines;
     } else {
-      includedFiles.push(file);
-      addedLines += file.additions;
-      removedLines += file.deletions;
+      uncountedAddedLines += groupAddedLines;
+      uncountedRemovedLines += groupRemovedLines;
     }
   }
 
   return {
     addedLines,
     removedLines,
-    ignoredAddedLines,
-    ignoredRemovedLines,
+    uncountedAddedLines,
+    uncountedRemovedLines,
     totalFiles: files.length,
-    includedFiles,
-    ignoredFiles,
+    groupedFiles,
   };
 }
