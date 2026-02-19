@@ -28199,26 +28199,20 @@ async function run() {
     }
     info("\u2713 Lines changed summary posted successfully");
   } catch (error2) {
-    if (error2 instanceof Error) {
-      if (error2.message.includes("Bad credentials")) {
-        setFailed(
-          'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.'
-        );
-      } else if (error2.message.includes("Not Found")) {
-        setFailed(
-          `Repository or PR not found. Ensure the action is running in the correct repository context.`
-        );
-      } else if (error2.message.includes("rate limit")) {
-        setFailed(
-          "GitHub API rate limit exceeded. Please wait before retrying."
-        );
-      } else {
-        setFailed(`Action failed: ${error2.message}`);
-      }
-    } else {
-      setFailed("An unexpected error occurred");
+    setFailed(getFailureReason(error2));
+  }
+}
+function getFailureReason(error2) {
+  if (error2 instanceof Error) {
+    if (error2.message.includes("Bad credentials")) {
+      return 'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.';
+    } else if (error2.message.includes("Not Found")) {
+      return "Repository or PR not found. Ensure the action is running in the correct repository context.";
+    } else if (error2.message.includes("rate limit")) {
+      return "GitHub API rate limit exceeded. Please wait before retrying.";
     }
   }
+  return "An unexpected error occurred";
 }
 run();
 /*! Bundled license information:
