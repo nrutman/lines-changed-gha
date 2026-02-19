@@ -25357,7 +25357,7 @@ async function getGitWhitespaceDiff(baseSha, headSha) {
       });
     } catch {
     }
-    const output = (0, import_child_process.execSync)(`git diff -w --numstat ${baseSha}...${headSha}`, {
+    const output = (0, import_child_process.execSync)(`git diff -w --numstat ${baseSha}..${headSha}`, {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
       maxBuffer: 10 * 1024 * 1024

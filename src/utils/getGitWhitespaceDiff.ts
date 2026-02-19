@@ -92,7 +92,7 @@ export async function getGitWhitespaceDiff(
       // Ignore fetch errors - commits may already be available
     }
 
-    const output = execSync(`git diff -w --numstat ${baseSha}...${headSha}`, {
+    const output = execSync(`git diff -w --numstat ${baseSha}..${headSha}`, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs

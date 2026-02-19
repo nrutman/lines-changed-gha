@@ -161,7 +161,7 @@ describe('getGitWhitespaceDiff', () => {
       expect.any(Object)
     );
     expect(mockedExecSync).toHaveBeenCalledWith(
-      'git diff -w --numstat abc123...def456',
+      'git diff -w --numstat abc123..def456',
       expect.any(Object)
     );
   });
