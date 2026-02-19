@@ -25213,6 +25213,9 @@ function generateCommentBody(summary2, header, owner, repo, prNumber, headSha) {
     }
   }
   body += groupSections.join("\n\n");
+  if (showCountIndicator) {
+    body += "\n\n\\* *Not counted toward the main +/- metric*";
+  }
   const shortSha = headSha.slice(0, 7);
   const commitUrl = `https://github.com/${owner}/${repo}/commit/${headSha}`;
   body += "\n\n---\n";
@@ -25240,8 +25243,8 @@ function generateGroupSection(groupedFile, totalChangedLines, owner, repo, prNum
   const fileCount = groupedFile.files.length;
   const groupChangedLines = groupedFile.addedLines + groupedFile.removedLines;
   const percentage = calculatePercentage(groupChangedLines, totalChangedLines);
-  const countIndicator = showCountIndicator && !groupedFile.group.countTowardMetric ? " \xB7 not counted" : "";
-  const summaryText = `${groupedFile.group.label} (${fileCount} ${pluralize(fileCount, "file", "files")}, ${percentage}% of changes${countIndicator})`;
+  const countIndicator = showCountIndicator && !groupedFile.group.countTowardMetric ? "*" : "";
+  const summaryText = `${groupedFile.group.label} (${fileCount} ${pluralize(fileCount, "file", "files")}, ${percentage}% of changes)${countIndicator}`;
   let section = `<details>
 <summary>${summaryText}</summary>
 

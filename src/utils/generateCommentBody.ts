@@ -59,6 +59,11 @@ export function generateCommentBody(
 
   body += groupSections.join('\n\n');
 
+  // Add footnote if there are uncounted groups
+  if (showCountIndicator) {
+    body += '\n\n\\* *Not counted toward the main +/- metric*';
+  }
+
   const shortSha = headSha.slice(0, 7);
   const commitUrl = `https://github.com/${owner}/${repo}/commit/${headSha}`;
 
@@ -109,12 +114,10 @@ function generateGroupSection(
   const groupChangedLines = groupedFile.addedLines + groupedFile.removedLines;
   const percentage = calculatePercentage(groupChangedLines, totalChangedLines);
 
-  // Build the summary line with optional count indicator
+  // Build the summary line with optional asterisk for uncounted groups
   const countIndicator =
-    showCountIndicator && !groupedFile.group.countTowardMetric
-      ? ' · not counted'
-      : '';
-  const summaryText = `${groupedFile.group.label} (${fileCount} ${pluralize(fileCount, 'file', 'files')}, ${percentage}% of changes${countIndicator})`;
+    showCountIndicator && !groupedFile.group.countTowardMetric ? '*' : '';
+  const summaryText = `${groupedFile.group.label} (${fileCount} ${pluralize(fileCount, 'file', 'files')}, ${percentage}% of changes)${countIndicator}`;
 
   let section = `<details>\n<summary>${summaryText}</summary>\n\n`;
 

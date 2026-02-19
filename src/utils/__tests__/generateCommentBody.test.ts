@@ -136,7 +136,7 @@ describe('generateCommentBody', () => {
       const body = generate(s);
 
       expect(body).toContain('Source (1 file');
-      expect(body).toContain('Generated (1 file');
+      expect(body).toContain('Generated (1 file, 80% of changes)*');
       expect(body).toContain('src/main.ts');
       expect(body).toContain('src/generated/api.ts');
     });
@@ -203,7 +203,7 @@ describe('generateCommentBody', () => {
   });
 
   describe('counting indicator', () => {
-    it('should show "not counted" when there are mixed counted/uncounted groups', () => {
+    it('should show asterisk and footnote when there are mixed counted/uncounted groups', () => {
       const s = summary([
         groupedFiles('Source', ['src/**'], [file('src/main.ts', 100, 50)]),
         groupedFiles(
@@ -216,10 +216,15 @@ describe('generateCommentBody', () => {
 
       const body = generate(s);
 
-      expect(body).toContain('not counted');
+      // Uncounted group should have asterisk at end of summary
+      expect(body).toContain('of changes)*');
+      // Counted group should not have asterisk
+      expect(body).not.toMatch(/Source.*\)\*/);
+      // Footnote should appear
+      expect(body).toContain('* *Not counted toward the main +/- metric*');
     });
 
-    it('should not show "not counted" when all groups are counted', () => {
+    it('should not show asterisk or footnote when all groups are counted', () => {
       const s = summary([
         groupedFiles('Source', ['src/**'], [file('src/main.ts', 100, 50)]),
         groupedFiles('Tests', ['**/*.test.ts'], [file('main.test.ts', 50, 10)]),
@@ -227,10 +232,11 @@ describe('generateCommentBody', () => {
 
       const body = generate(s);
 
-      expect(body).not.toContain('not counted');
+      expect(body).not.toContain('changes)*');
+      expect(body).not.toContain('Not counted');
     });
 
-    it('should not show "not counted" when all groups are uncounted', () => {
+    it('should not show asterisk or footnote when all groups are uncounted', () => {
       const s = summary([
         groupedFiles(
           'Build',
@@ -249,7 +255,8 @@ describe('generateCommentBody', () => {
       const body = generate(s);
 
       // When all are uncounted, no need to call out individual ones
-      expect(body).not.toContain('not counted');
+      expect(body).not.toContain('changes)*');
+      expect(body).not.toContain('Not counted');
     });
   });
 
