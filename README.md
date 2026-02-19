@@ -1,23 +1,26 @@
 # Lines Changed Summary Action
 
-A GitHub Action that comments on pull requests with a lines changed summary (using GitHub's +/- style), with the ability to ignore files based on pattern matching.
+A GitHub Action that comments on pull requests with a lines changed summary (using GitHub's +/- style), with configurable file groups for flexible categorization and counting.
 
-This is useful when you want to get an accurate sense of the PR scope without counting generated files, lock files, or other files that don't meaningfully impact review effort.
+This is useful when you want to get an accurate sense of the PR scope by categorizing files (e.g., source code, tests, generated files) and controlling which ones count toward the main metric.
 
 ## Features
 
 - 📊 Posts a clean lines changed summary on PRs
-- 🎯 Ignores files based on configurable patterns (e.g., `**/generated/**`, `*.lock`)
+- 📁 Configurable file groups with custom labels and glob patterns
+- 🎯 Control which groups count toward the main +/- metric
 - 🔄 Updates the same comment on each run (no spam)
-- 📁 Shows changed and ignored files in collapsible sections
+- 📄 Shows each group in collapsible sections with file tables
 - 🔗 All filenames link directly to their diff in the PR
-- 📄 Handles PRs with any number of files (automatic pagination)
+- 📃 Handles PRs with any number of files (automatic pagination)
 - ✅ Validates glob patterns and warns about common mistakes
 - ⚡ Fast and lightweight TypeScript implementation
 
 ## Usage
 
-### Basic Example
+### Basic Example (No Groups)
+
+Without any file groups configured, all files go into a default "Changed" group and count toward the metric:
 
 ```yaml
 name: Lines Changed Summary
@@ -30,32 +33,44 @@ jobs:
   lines-changed:
     runs-on: ubuntu-latest
     steps:
-      - uses: nrutman/lines-changed-gha@v2
+      - uses: nrutman/lines-changed-gha@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Ignore Generated Files
+### With File Groups
+
+Use file groups to categorize changes and control what counts toward the main metric:
 
 ```yaml
-- uses: nrutman/lines-changed-gha@v2
+- uses: nrutman/lines-changed-gha@v3
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    ignore-patterns: |
-      **/generated/**,
-      **/*.generated.ts,
-      **/*.lock,
-      **/dist/**
+    file-groups: |
+      - label: "🧪 Tests"
+        patterns:
+          - "**/__tests__/**"
+        count: true
+      - label: "⚙️ Generated"
+        patterns:
+          - "**/generated/**"
+          - "**/dist/**"
+        count: false
+      - label: "📦 Lock Files"
+        patterns:
+          - "*-lock.*"
+          - "*.lock"
+        count: false
+    default-group-label: "🏅 Source Code"
 ```
 
 ### Custom Comment Header
 
 ```yaml
-- uses: nrutman/lines-changed-gha@v2
+- uses: nrutman/lines-changed-gha@v3
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    ignore-patterns: '**/generated/**,**/*.lock'
-    comment-header: '## 📊 Code Changes (excluding generated files)'
+    comment-header: '## 📊 Code Changes Summary'
 ```
 
 ## Inputs
@@ -63,23 +78,58 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
-| `ignore-patterns` | Comma-separated list of glob patterns to ignore | No | `''` |
-| `comment-header` | Custom header text prepended to the summary | No | None (shows squares and counts only) |
+| `file-groups` | YAML configuration for file groups (see below) | No | `''` |
+| `default-group-label` | Label for files not matching any group pattern | No | `'Changed'` |
+| `comment-header` | Custom header text prepended to the summary | No | None |
+
+### File Groups Configuration
+
+The `file-groups` input accepts a YAML array of group definitions. Each group has:
+
+| Property | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `label` | Display name for this group | Yes | - |
+| `patterns` | Array of glob patterns to match files | Yes | - |
+| `count` | Whether files in this group count toward the main +/- metric | No | `true` |
+
+**Important:** Groups are processed in order. The first matching group wins—a file cannot appear in multiple groups.
+
+#### Example Configuration
+
+```yaml
+file-groups: |
+  - label: "🧪 Tests"
+    patterns:
+      - "**/__tests__/**"
+      - "**/*.test.ts"
+      - "**/*.spec.ts"
+    count: true
+
+  - label: "⚙️ Generated"
+    patterns:
+      - "**/generated/**"
+      - "**/dist/**"
+    count: false
+
+  - label: "📄 Documentation"
+    patterns:
+      - "**/*.md"
+      - "docs/**"
+    count: false
+```
+
+Files not matching any group pattern will go into the default group (configurable via `default-group-label`, defaults to "Changed"). The default group always counts toward the main metric.
 
 ### Pattern Matching
 
-The `ignore-patterns` input accepts glob patterns that follow the [minimatch](https://github.com/isaacs/minimatch) syntax:
+Patterns follow the [minimatch](https://github.com/isaacs/minimatch) syntax:
 
-- `**/generated/**` - Ignore all files in any `generated` directory
-- `**/*.generated.ts` - Ignore all files ending with `.generated.ts`
-- `*.lock` - Ignore lock files in the root directory
-- `**/*.lock` - Ignore lock files anywhere
-- `**/dist/**` - Ignore all files in any `dist` directory
-
-Multiple patterns can be combined with commas:
-```yaml
-ignore-patterns: '**/generated/**,**/*.lock,**/dist/**'
-```
+- `**/generated/**` - Match all files in any `generated` directory
+- `**/*.generated.ts` - Match all files ending with `.generated.ts`
+- `*.lock` - Match lock files in the root directory
+- `**/*.lock` - Match lock files anywhere
+- `src/**/*.ts` - Match TypeScript files in the `src` directory tree
+- `*-lock.*` - Match files like `package-lock.json`, `pnpm-lock.yaml`
 
 **Pattern Validation:** The action validates your glob patterns and warns about common mistakes:
 - Patterns starting with `/` (should be relative)
@@ -90,23 +140,28 @@ ignore-patterns: '**/generated/**,**/*.lock,**/dist/**'
 
 | Output | Description |
 |--------|-------------|
-| `added-lines` | Number of lines added (not counting ignored files) |
-| `removed-lines` | Number of lines removed (not counting ignored files) |
+| `added-lines` | Number of lines added (from groups with `count: true`) |
+| `removed-lines` | Number of lines removed (from groups with `count: true`) |
+| `uncounted-added-lines` | Number of lines added (from groups with `count: false`) |
+| `uncounted-removed-lines` | Number of lines removed (from groups with `count: false`) |
 | `total-files` | Total number of files changed |
-| `ignored-files` | Number of files ignored by patterns |
 
 ### Using Outputs
 
 ```yaml
-- uses: nrutman/lines-changed-gha@v2
+- uses: nrutman/lines-changed-gha@v3
   id: lines-changed
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
-    ignore-patterns: '**/generated/**'
+    file-groups: |
+      - label: "Generated"
+        patterns:
+          - "**/generated/**"
+        count: false
 
 - name: Check if PR is too large
   if: steps.lines-changed.outputs.added-lines > 500
-  run: echo "::warning::This PR adds more than 500 lines"
+  run: echo "::warning::This PR adds more than 500 lines of non-generated code"
 ```
 
 ## Example Comment
@@ -118,26 +173,37 @@ The action will post a comment like this:
 ## 🟩🟩🟩🟥🟥 **+342** / **-128**
 
 <details>
-<summary>Changed (12 files, 85% of changes)</summary>
+<summary>🏅 Source Code (8 files, 60% of changes)</summary>
 
 | File | Lines Added | Lines Removed |
 |------|-------------|---------------|
-| [`src/components/UserProfile.tsx`](https://github.com/owner/repo/pull/123/files#diff-xyz123) | +45 | -12 |
-| [`src/utils/helpers.ts`](https://github.com/owner/repo/pull/123/files#diff-abc789) | +23 | -8 |
+| [`src/components/UserProfile.tsx`](https://github.com/owner/repo/pull/123/files#diff-xyz123) | +145 | -52 |
+| [`src/utils/helpers.ts`](https://github.com/owner/repo/pull/123/files#diff-abc789) | +123 | -48 |
 | ...
 
 </details>
 
 <details>
-<summary>Ignored (3 files, 15% of changes)</summary>
+<summary>🧪 Tests (5 files, 25% of changes)</summary>
 
-Ignored patterns: `**/generated/**`, `**/*.lock`
+Patterns: `**/__tests__/**`
 
 | File | Lines Added | Lines Removed |
 |------|-------------|---------------|
-| [`src/generated/api.ts`](https://github.com/owner/repo/pull/123/files#diff-abc123) | +50 | -5 |
-| [`src/generated/types.ts`](https://github.com/owner/repo/pull/123/files#diff-def456) | +20 | -3 |
-| [`package-lock.json`](https://github.com/owner/repo/pull/123/files#diff-789abc) | +5 | -0 |
+| [`src/__tests__/UserProfile.test.tsx`](https://github.com/owner/repo/pull/123/files#diff-test123) | +50 | -15 |
+| ...
+
+</details>
+
+<details>
+<summary>⚙️ Generated (3 files, 15% of changes · not counted)</summary>
+
+Patterns: `**/dist/**`, `pnpm-lock.yaml`
+
+| File | Lines Added | Lines Removed |
+|------|-------------|---------------|
+| [`dist/index.js`](https://github.com/owner/repo/pull/123/files#diff-abc123) | +50 | -5 |
+| ...
 
 </details>
 
@@ -145,6 +211,44 @@ Ignored patterns: `**/generated/**`, `**/*.lock`
 *Generated by [Lines Changed](https://github.com/nrutman/lines-changed-gha) GitHub Action against [`a1b2c3d`](https://github.com/owner/repo/commit/a1b2c3d)*
 
 ---
+
+## Migration from v2
+
+v3 introduces a breaking change by replacing the `ignore-patterns` input with a more flexible file groups system.
+
+### Before (v2)
+
+```yaml
+- uses: nrutman/lines-changed-gha@v2
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    ignore-patterns: '**/generated/**,**/*.lock,**/dist/**'
+```
+
+### After (v3)
+
+```yaml
+- uses: nrutman/lines-changed-gha@v3
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    file-groups: |
+      - label: "Ignored"
+        patterns:
+          - "**/generated/**"
+          - "**/*.lock"
+          - "**/dist/**"
+        count: false
+    default-group-label: "Changed"
+```
+
+### Key Differences
+
+| v2 | v3 |
+|----|-----|
+| `ignore-patterns` (comma-separated) | `file-groups` (YAML array) |
+| Two categories: Changed/Ignored | Unlimited custom groups |
+| `ignored-files` output | `uncounted-added-lines`, `uncounted-removed-lines` outputs |
+| Fixed "Changed" and "Ignored" labels | Custom labels per group |
 
 ## Development
 
@@ -181,6 +285,19 @@ pnpm build
 
 This compiles the TypeScript code and bundles it with dependencies using `esbuild`. Always commit the `dist/` folder after building.
 
+### Testing
+
+```bash
+pnpm test           # Run tests once
+pnpm test:watch     # Run tests in watch mode
+```
+
+### Full Check
+
+```bash
+pnpm check          # Type-check, lint, format, test, and build
+```
+
 ### Ensuring Build Files Are Always Up To Date
 
 The CI workflow includes a dedicated job called **"Verify Build Files Up To Date"** that checks if the committed `dist/` files match the source code. This prevents merging changes when build files are outdated.
@@ -197,23 +314,6 @@ To **enforce** that build files are always up to date:
    - ✅ **Verify Build Files Up To Date**
 
 This will prevent merging any PR where the build files are out of date.
-
-#### Optional: Pre-commit Hook
-
-You can add a pre-commit hook to automatically rebuild before committing:
-
-```bash
-cat > .git/hooks/pre-commit << 'EOF'
-#!/bin/sh
-echo "Rebuilding action before commit..."
-pnpm build
-git add dist/
-EOF
-
-chmod +x .git/hooks/pre-commit
-```
-
-**Note:** This rebuilds on every commit, which may slow down your workflow. The CI check is usually sufficient.
 
 ### Testing Locally
 

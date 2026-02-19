@@ -1,297 +1,337 @@
-import { describe, it, expect } from 'vitest';
-import { generateCommentBody } from '../generateCommentBody';
+import { describe, expect, it } from 'vitest';
 import { COMMENT_IDENTIFIER } from '../constants';
-import type { DiffSummary } from '../types';
+import { generateCommentBody } from '../generateCommentBody';
+import type {
+  DiffSummary,
+  FileChange,
+  FileGroup,
+  GroupedFiles,
+} from '../types';
 
 describe('generateCommentBody', () => {
-  const createSummary = (
+  // Helper to create a file change
+  const file = (
+    filename: string,
+    additions: number,
+    deletions: number
+  ): FileChange => ({
+    filename,
+    additions,
+    deletions,
+    changes: additions + deletions,
+    status: 'modified',
+  });
+
+  // Helper to create a grouped files entry for a defined group (with patterns)
+  const groupedFiles = (
+    label: string,
+    patterns: string[],
+    files: FileChange[],
+    countTowardMetric = true
+  ): GroupedFiles => {
+    const group: FileGroup = { label, patterns, countTowardMetric };
+    return {
+      group,
+      files,
+      addedLines: files.reduce((sum, f) => sum + f.additions, 0),
+      removedLines: files.reduce((sum, f) => sum + f.deletions, 0),
+    };
+  };
+
+  // Helper to create a grouped files entry for the default group (no patterns)
+  const defaultGroupedFiles = (
+    label: string,
+    files: FileChange[]
+  ): GroupedFiles => ({
+    group: { label, countTowardMetric: true },
+    files,
+    addedLines: files.reduce((sum, f) => sum + f.additions, 0),
+    removedLines: files.reduce((sum, f) => sum + f.deletions, 0),
+  });
+
+  // Helper to create a summary
+  const summary = (
+    groups: GroupedFiles[],
     overrides: Partial<DiffSummary> = {}
-  ): DiffSummary => ({
-    addedLines: 100,
-    removedLines: 50,
-    ignoredAddedLines: 0,
-    ignoredRemovedLines: 0,
-    totalFiles: 2,
-    includedFiles: [
-      {
-        filename: 'src/main.ts',
-        additions: 70,
-        deletions: 30,
-        changes: 100,
-        status: 'modified',
-      },
-      {
-        filename: 'src/utils.ts',
-        additions: 30,
-        deletions: 20,
-        changes: 50,
-        status: 'modified',
-      },
-    ],
-    ignoredFiles: [],
-    ...overrides,
-  });
+  ): DiffSummary => {
+    const countedGroups = groups.filter(g => g.group.countTowardMetric);
+    const uncountedGroups = groups.filter(g => !g.group.countTowardMetric);
 
-  it('should include comment identifier', () => {
-    const body = generateCommentBody(
-      createSummary(),
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
+    return {
+      addedLines: countedGroups.reduce((sum, g) => sum + g.addedLines, 0),
+      removedLines: countedGroups.reduce((sum, g) => sum + g.removedLines, 0),
+      uncountedAddedLines: uncountedGroups.reduce(
+        (sum, g) => sum + g.addedLines,
+        0
+      ),
+      uncountedRemovedLines: uncountedGroups.reduce(
+        (sum, g) => sum + g.removedLines,
+        0
+      ),
+      totalFiles: groups.reduce((sum, g) => sum + g.files.length, 0),
+      groupedFiles: groups,
+      ...overrides,
+    };
+  };
 
-    expect(body).toContain(COMMENT_IDENTIFIER);
-  });
+  // Helper to generate comment with defaults
+  const generate = (s: DiffSummary, header = '') =>
+    generateCommentBody(s, header, 'owner', 'repo', 123, 'abc1234def5678');
 
-  it('should show correct line counts', () => {
-    const body = generateCommentBody(
-      createSummary({ addedLines: 342, removedLines: 128 }),
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
+  describe('basic structure', () => {
+    const basicSummary = summary([
+      defaultGroupedFiles('Changed', [
+        file('src/main.ts', 100, 50),
+        file('src/utils.ts', 30, 20),
+      ]),
+    ]);
 
-    expect(body).toContain('**+342**');
-    expect(body).toContain('**-128**');
-  });
-
-  it('should prepend custom header above the summary when provided', () => {
-    const body = generateCommentBody(
-      createSummary(),
-      '### Custom Context',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).toContain('### Custom Context');
-    // The squares header should still be present
-    expect(body).toMatch(/## .+\*\*\+100\*\*/);
-  });
-
-  it('should include changed files section', () => {
-    const body = generateCommentBody(
-      createSummary(),
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).toContain('Changed (2 files');
-    expect(body).toContain('src/main.ts');
-    expect(body).toContain('src/utils.ts');
-  });
-
-  it('should include ignored files section when files are ignored', () => {
-    const summary = createSummary({
-      ignoredFiles: [
-        {
-          filename: 'dist/index.js',
-          additions: 400,
-          deletions: 50,
-          changes: 450,
-          status: 'modified',
-        },
-        {
-          filename: 'generated/api.ts',
-          additions: 100,
-          deletions: 50,
-          changes: 150,
-          status: 'modified',
-        },
-      ],
-      ignoredAddedLines: 500,
-      ignoredRemovedLines: 100,
+    it('should include comment identifier for update detection', () => {
+      const body = generate(basicSummary);
+      expect(body).toContain(COMMENT_IDENTIFIER);
     });
 
-    const body = generateCommentBody(
-      summary,
-      '',
-      ['**/dist/**', '**/generated/**'],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).toContain('Ignored (2 files');
-    expect(body).toContain('dist/index.js');
-    expect(body).toContain('generated/api.ts');
-    expect(body).toContain('**/dist/**');
-  });
-
-  it('should not include ignored section when no files ignored', () => {
-    const body = generateCommentBody(
-      createSummary({ ignoredFiles: [] }),
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).not.toContain('Ignored (');
-  });
-
-  it('should calculate percentages correctly', () => {
-    const summary = createSummary({
-      addedLines: 85,
-      removedLines: 15,
-      ignoredAddedLines: 0,
-      ignoredRemovedLines: 0,
+    it('should show correct line counts in header', () => {
+      const body = generate(basicSummary);
+      expect(body).toContain('**+130**');
+      expect(body).toContain('**-70**');
     });
 
-    const body = generateCommentBody(
-      summary,
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).toContain('100% of changes');
-  });
-
-  it('should sort files by changes descending', () => {
-    const summary = createSummary({
-      includedFiles: [
-        {
-          filename: 'small.ts',
-          additions: 10,
-          deletions: 5,
-          changes: 15,
-          status: 'modified',
-        },
-        {
-          filename: 'large.ts',
-          additions: 100,
-          deletions: 50,
-          changes: 150,
-          status: 'modified',
-        },
-        {
-          filename: 'medium.ts',
-          additions: 30,
-          deletions: 20,
-          changes: 50,
-          status: 'modified',
-        },
-      ],
+    it('should include attribution footer with commit link', () => {
+      const body = generate(basicSummary);
+      expect(body).toContain('Generated by');
+      expect(body).toContain('Lines Changed');
+      expect(body).toContain('abc1234');
+      expect(body).toContain(
+        'https://github.com/owner/repo/commit/abc1234def5678'
+      );
     });
 
-    const body = generateCommentBody(
-      summary,
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    const largeIndex = body.indexOf('large.ts');
-    const mediumIndex = body.indexOf('medium.ts');
-    const smallIndex = body.indexOf('small.ts');
-
-    expect(largeIndex).toBeLessThan(mediumIndex);
-    expect(mediumIndex).toBeLessThan(smallIndex);
-  });
-
-  it('should include attribution footer', () => {
-    const body = generateCommentBody(
-      createSummary(),
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).toContain('Generated by');
-    expect(body).toContain('Lines Changed');
-    expect(body).toContain('https://github.com/nrutman/lines-changed-gha');
-  });
-
-  it('should handle singular file count', () => {
-    const summary = createSummary({
-      includedFiles: [
-        {
-          filename: 'only.ts',
-          additions: 10,
-          deletions: 5,
-          changes: 15,
-          status: 'modified',
-        },
-      ],
+    it('should generate valid file diff URLs', () => {
+      const body = generate(basicSummary);
+      expect(body).toContain(
+        'https://github.com/owner/repo/pull/123/files#diff-'
+      );
     });
 
-    const body = generateCommentBody(
-      summary,
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
-
-    expect(body).toContain('1 file');
-    expect(body).not.toContain('1 files');
+    it('should prepend custom header when provided', () => {
+      const body = generate(basicSummary, '### Custom Context');
+      expect(body).toContain('### Custom Context');
+      expect(body).toMatch(/## .+\*\*\+130\*\*/);
+    });
   });
 
-  it('should generate valid file diff URLs', () => {
-    const body = generateCommentBody(
-      createSummary(),
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
+  describe('group sections', () => {
+    it('should create collapsible section for each group with files', () => {
+      const s = summary([
+        groupedFiles('Source', ['src/**/*.ts'], [file('src/main.ts', 100, 50)]),
+        groupedFiles(
+          'Generated',
+          ['**/generated/**'],
+          [file('src/generated/api.ts', 500, 100)],
+          false
+        ),
+      ]);
 
-    expect(body).toContain(
-      'https://github.com/owner/repo/pull/123/files#diff-'
-    );
-  });
+      const body = generate(s);
 
-  it('should handle empty PR with no files', () => {
-    const summary = createSummary({
-      addedLines: 0,
-      removedLines: 0,
-      includedFiles: [],
-      ignoredFiles: [],
-      totalFiles: 0,
+      expect(body).toContain('Source (1 file');
+      expect(body).toContain('Generated (1 file');
+      expect(body).toContain('src/main.ts');
+      expect(body).toContain('src/generated/api.ts');
     });
 
-    const body = generateCommentBody(
-      summary,
-      '',
-      [],
-      'owner',
-      'repo',
-      123,
-      'abc1234def5678'
-    );
+    it('should show patterns for groups that have them', () => {
+      const s = summary([
+        groupedFiles(
+          'Generated',
+          ['**/generated/**', '**/*.gen.ts'],
+          [file('src/generated/api.ts', 500, 100)],
+          false
+        ),
+      ]);
 
-    expect(body).toContain('**+0** / **-0**');
-    expect(body).not.toContain('Changed (');
-    expect(body).not.toContain('Ignored (');
-    expect(body).toContain('Generated by');
+      const body = generate(s);
+
+      expect(body).toContain('Patterns: `**/generated/**`, `**/*.gen.ts`');
+    });
+
+    it('should not show patterns for default group', () => {
+      const s = summary([
+        defaultGroupedFiles('Changed', [file('src/main.ts', 100, 50)]),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).not.toContain('Patterns:');
+    });
+
+    it('should handle singular vs plural file count', () => {
+      const singleFile = summary([
+        defaultGroupedFiles('Changed', [file('only.ts', 10, 5)]),
+      ]);
+      const multipleFiles = summary([
+        defaultGroupedFiles('Changed', [
+          file('a.ts', 10, 5),
+          file('b.ts', 10, 5),
+        ]),
+      ]);
+
+      expect(generate(singleFile)).toContain('1 file');
+      expect(generate(singleFile)).not.toContain('1 files');
+      expect(generate(multipleFiles)).toContain('2 files');
+    });
+
+    it('should sort files by changes descending within each group', () => {
+      const s = summary([
+        defaultGroupedFiles('Changed', [
+          file('small.ts', 10, 5),
+          file('large.ts', 100, 50),
+          file('medium.ts', 30, 20),
+        ]),
+      ]);
+
+      const body = generate(s);
+
+      const largeIndex = body.indexOf('large.ts');
+      const mediumIndex = body.indexOf('medium.ts');
+      const smallIndex = body.indexOf('small.ts');
+
+      expect(largeIndex).toBeLessThan(mediumIndex);
+      expect(mediumIndex).toBeLessThan(smallIndex);
+    });
+  });
+
+  describe('counting indicator', () => {
+    it('should show "not counted" when there are mixed counted/uncounted groups', () => {
+      const s = summary([
+        groupedFiles('Source', ['src/**'], [file('src/main.ts', 100, 50)]),
+        groupedFiles(
+          'Generated',
+          ['**/generated/**'],
+          [file('generated/api.ts', 500, 100)],
+          false
+        ),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain('not counted');
+    });
+
+    it('should not show "not counted" when all groups are counted', () => {
+      const s = summary([
+        groupedFiles('Source', ['src/**'], [file('src/main.ts', 100, 50)]),
+        groupedFiles('Tests', ['**/*.test.ts'], [file('main.test.ts', 50, 10)]),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).not.toContain('not counted');
+    });
+
+    it('should not show "not counted" when all groups are uncounted', () => {
+      const s = summary([
+        groupedFiles(
+          'Build',
+          ['dist/**'],
+          [file('dist/index.js', 1000, 500)],
+          false
+        ),
+        groupedFiles(
+          'Lock',
+          ['*-lock.*'],
+          [file('pnpm-lock.yaml', 100, 50)],
+          false
+        ),
+      ]);
+
+      const body = generate(s);
+
+      // When all are uncounted, no need to call out individual ones
+      expect(body).not.toContain('not counted');
+    });
+  });
+
+  describe('percentages', () => {
+    it('should calculate percentages correctly', () => {
+      const s = summary([
+        defaultGroupedFiles('Changed', [file('src/main.ts', 100, 50)]),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain('100% of changes');
+    });
+
+    it('should show proportional percentages for multiple groups', () => {
+      const s = summary([
+        groupedFiles('Source', ['src/**'], [file('src/main.ts', 75, 25)]), // 100 changes
+        groupedFiles(
+          'Generated',
+          ['dist/**'],
+          [file('dist/index.js', 225, 75)], // 300 changes
+          false
+        ),
+      ]);
+
+      const body = generate(s);
+
+      // Source: 100/400 = 25%
+      // Generated: 300/400 = 75%
+      expect(body).toContain('25% of changes');
+      expect(body).toContain('75% of changes');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle empty PR with no files', () => {
+      const s = summary([]);
+
+      const body = generate(s);
+
+      expect(body).toContain('**+0** / **-0**');
+      expect(body).not.toContain('Changed (');
+      expect(body).toContain('Generated by');
+    });
+
+    it('should handle PR where all files are in uncounted groups', () => {
+      const s = summary([
+        groupedFiles(
+          'Generated',
+          ['dist/**'],
+          [file('dist/index.js', 1000, 500)],
+          false
+        ),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain('**+0** / **-0**');
+      expect(body).toContain('Generated (1 file');
+    });
+
+    it('should support emoji in group labels', () => {
+      const s = summary([
+        groupedFiles(
+          '🧪 Tests',
+          ['**/*.test.ts'],
+          [file('main.test.ts', 50, 10)]
+        ),
+        groupedFiles(
+          '📦 Build',
+          ['dist/**'],
+          [file('dist/index.js', 1000, 500)],
+          false
+        ),
+        defaultGroupedFiles('🏅 Source Code', [file('src/main.ts', 100, 50)]),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain('🧪 Tests');
+      expect(body).toContain('📦 Build');
+      expect(body).toContain('🏅 Source Code');
+    });
   });
 });

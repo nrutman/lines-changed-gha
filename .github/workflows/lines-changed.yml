@@ -18,4 +18,17 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          ignore-patterns: '**/dist/**,**/node_modules/**,pnpm-lock.yaml'
+          file-groups: |
+            - label: "🧪 Tests"
+              patterns:
+                - "**/__tests__/**"
+              count: true
+            - label: "📦 Build"
+              patterns:
+                - "dist/**"
+              count: false
+            - label: "⚙️ Generated"
+              patterns:
+                - "pnpm-lock.yaml"
+              count: false
+          default-group-label: '🏅 Source Code'

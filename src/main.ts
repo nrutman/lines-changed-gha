@@ -2,27 +2,35 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import {
   calculateDiffSummary,
-  generateCommentBody,
-  validateGlobPatterns,
   COMMENT_IDENTIFIER,
+  generateCommentBody,
+  parseFileGroups,
+  validateGlobPatterns,
 } from './utils';
 
 async function run(): Promise<void> {
   try {
     const token = core.getInput('github-token', { required: true });
-    const ignorePatternsInput = core.getInput('ignore-patterns');
+    const fileGroupsYaml = core.getInput('file-groups');
+    const defaultGroupLabel = core.getInput('default-group-label') || 'Changed';
     const commentHeader = core.getInput('comment-header');
 
-    const ignorePatterns = ignorePatternsInput
-      .split(',')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
+    // Parse file groups configuration
+    let config;
+    try {
+      config = parseFileGroups(fileGroupsYaml, defaultGroupLabel);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'unknown error';
+      core.setFailed(`Failed to parse file-groups configuration: ${message}`);
+      return;
+    }
 
-    // Validate glob patterns
-    const patternErrors = validateGlobPatterns(ignorePatterns);
+    // Validate glob patterns from all groups
+    const allPatterns = config.groups.flatMap(g => g.patterns);
+    const patternErrors = validateGlobPatterns(allPatterns);
     if (patternErrors.length > 0) {
       for (const error of patternErrors) {
-        core.warning(`Invalid ignore pattern: ${error}`);
+        core.warning(`Invalid pattern: ${error}`);
       }
     }
 
@@ -40,7 +48,19 @@ async function run(): Promise<void> {
     const repo = context.repo.repo;
 
     core.info(`Processing PR #${prNumber} in ${owner}/${repo}`);
-    core.info(`Ignore patterns: ${ignorePatterns.join(', ') || 'none'}`);
+
+    // Log configuration
+    if (config.groups.length > 0) {
+      core.info(`File groups configured: ${config.groups.length}`);
+      for (const group of config.groups) {
+        core.info(
+          `  - "${group.label}": ${group.patterns.length} pattern(s), count=${group.countTowardMetric}`
+        );
+      }
+    }
+    core.info(
+      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}`
+    );
 
     // Get all files changed in the PR using pagination
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
@@ -53,31 +73,32 @@ async function run(): Promise<void> {
     core.info(`Found ${files.length} changed files`);
 
     // Calculate diff summary
-    const summary = calculateDiffSummary(files, ignorePatterns);
+    const summary = calculateDiffSummary(files, config);
 
-    // Log changed/ignored files
-    for (const file of summary.includedFiles) {
-      core.info(
-        `✓ Changed: ${file.filename} (+${file.additions} -${file.deletions})`
-      );
-    }
-    for (const file of summary.ignoredFiles) {
-      core.info(
-        `✗ Ignored: ${file.filename} (+${file.additions} -${file.deletions})`
-      );
+    // Log grouped files
+    for (const groupedFile of summary.groupedFiles) {
+      const countIndicator = groupedFile.group.countTowardMetric
+        ? '✓'
+        : '○ (not counted)';
+      core.info(`${countIndicator} ${groupedFile.group.label}:`);
+      for (const file of groupedFile.files) {
+        core.info(
+          `    ${file.filename} (+${file.additions} -${file.deletions})`
+        );
+      }
     }
 
     // Set outputs
     core.setOutput('added-lines', summary.addedLines);
     core.setOutput('removed-lines', summary.removedLines);
+    core.setOutput('uncounted-added-lines', summary.uncountedAddedLines);
+    core.setOutput('uncounted-removed-lines', summary.uncountedRemovedLines);
     core.setOutput('total-files', summary.totalFiles);
-    core.setOutput('ignored-files', summary.ignoredFiles.length);
 
     // Generate comment body
     const commentBody = generateCommentBody(
       summary,
       commentHeader,
-      ignorePatterns,
       owner,
       repo,
       prNumber,
