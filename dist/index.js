@@ -25306,7 +25306,7 @@ function generateGroupSection(groupedFile, totalChangedLines, owner, repo, prNum
   const wsAdded = groupedFile.whitespaceOnlyAddedLines ?? 0;
   const wsRemoved = groupedFile.whitespaceOnlyRemovedLines ?? 0;
   if (wsAdded > 0 || wsRemoved > 0) {
-    section += `*+${wsAdded} / -${wsRemoved} whitespace-only changes excluded from group counts*
+    section += `*+${wsAdded} / -${wsRemoved} whitespace-only changes excluded from line counts*
 
 `;
   }

@@ -354,7 +354,7 @@ describe('generateCommentBody', () => {
       const body = generate(s);
 
       expect(body).toContain(
-        '*+20 / -10 whitespace-only changes excluded from group counts*'
+        '*+20 / -10 whitespace-only changes excluded from line counts*'
       );
     });
 
@@ -439,7 +439,7 @@ describe('generateCommentBody', () => {
       const body = generate(s);
 
       expect(body).toContain(
-        '*+20 / -10 whitespace-only changes excluded from group counts*'
+        '*+20 / -10 whitespace-only changes excluded from line counts*'
       );
     });
 
