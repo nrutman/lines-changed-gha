@@ -4,6 +4,7 @@ import {
   calculateDiffSummary,
   COMMENT_IDENTIFIER,
   generateCommentBody,
+  getGitWhitespaceDiff,
   parseFileGroups,
   validateGlobPatterns,
 } from './utils';
@@ -42,6 +43,7 @@ async function run(): Promise<void> {
     }
 
     const prNumber = context.payload.pull_request.number;
+    const baseSha = context.payload.pull_request.base.sha as string;
     const headSha = context.payload.pull_request.head.sha as string;
     const owner = context.repo.owner;
     const repo = context.repo.repo;
@@ -71,8 +73,25 @@ async function run(): Promise<void> {
 
     core.info(`Found ${files.length} changed files`);
 
+    // Get whitespace-adjusted counts if any group uses ignore-whitespace
+    const hasIgnoreWhitespace = config.groups.some(g => g.ignoreWhitespace);
+    let whitespaceAdjustedCounts = null;
+    if (hasIgnoreWhitespace) {
+      core.info('Groups with ignore-whitespace detected, running git diff -w');
+      whitespaceAdjustedCounts = await getGitWhitespaceDiff(baseSha, headSha);
+      if (whitespaceAdjustedCounts) {
+        core.info(
+          `Got whitespace-adjusted counts for ${whitespaceAdjustedCounts.size} files`
+        );
+      }
+    }
+
     // Calculate diff summary
-    const summary = calculateDiffSummary(files, config);
+    const summary = calculateDiffSummary(
+      files,
+      config,
+      whitespaceAdjustedCounts
+    );
 
     // Log grouped files
     for (const groupedFile of summary.groupedFiles) {

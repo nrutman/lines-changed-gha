@@ -20,11 +20,13 @@ describe('calculateDiffSummary', () => {
   const group = (
     label: string,
     patterns: string[],
-    countTowardMetric = true
+    countTowardMetric = true,
+    ignoreWhitespace = false
   ): FileGroup => ({
     label,
     patterns,
     countTowardMetric,
+    ignoreWhitespace,
   });
 
   // Helper to create config
@@ -280,6 +282,120 @@ describe('calculateDiffSummary', () => {
         '.env',
         '.gitignore',
       ]);
+    });
+  });
+
+  describe('whitespace-adjusted counts', () => {
+    it('should use adjusted counts for groups with ignoreWhitespace', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('src/utils.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        ['src/utils.ts', { additions: 25, deletions: 8 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(105); // 80 + 25
+      expect(sourceGroup.removedLines).toBe(48); // 40 + 8
+    });
+
+    it('should fall back to API counts when file not in adjusted map', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('src/missing.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        // src/missing.ts not in map
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(110); // 80 + 30 (fallback)
+      expect(sourceGroup.removedLines).toBe(50); // 40 + 10 (fallback)
+    });
+
+    it('should use raw counts for groups without ignoreWhitespace', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('test/main.test.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        ['test/main.test.ts', { additions: 20, deletions: 5 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([
+          group('Source', ['src/**'], true, true),
+          group('Tests', ['test/**'], true, false),
+        ]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(80); // adjusted
+      expect(sourceGroup.removedLines).toBe(40); // adjusted
+
+      const testsGroup = result.groupedFiles.find(
+        g => g.group.label === 'Tests'
+      )!;
+      expect(testsGroup.addedLines).toBe(30); // raw API counts
+      expect(testsGroup.removedLines).toBe(10); // raw API counts
+    });
+
+    it('should use raw counts when adjustedCounts is null', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        null
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(100);
+      expect(sourceGroup.removedLines).toBe(50);
+    });
+
+    it('should use raw counts when adjustedCounts is undefined', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)])
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(100);
+      expect(sourceGroup.removedLines).toBe(50);
     });
   });
 

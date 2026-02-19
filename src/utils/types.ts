@@ -19,6 +19,8 @@ export interface FileGroup {
   patterns: string[];
   /** Whether files in this group count toward the main +/- metric */
   countTowardMetric: boolean;
+  /** Whether to exclude whitespace-only changes from line counts */
+  ignoreWhitespace: boolean;
 }
 
 /**

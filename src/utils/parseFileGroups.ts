@@ -89,10 +89,22 @@ export function parseFileGroups(
       countTowardMetric = raw.count;
     }
 
+    // Validate ignore-whitespace (defaults to false if not specified)
+    let ignoreWhitespace = false;
+    if (raw['ignore-whitespace'] !== undefined) {
+      if (typeof raw['ignore-whitespace'] !== 'boolean') {
+        throw new Error(
+          `Group ${groupNum} ("${raw.label}"): 'ignore-whitespace' must be a boolean (true or false)`
+        );
+      }
+      ignoreWhitespace = raw['ignore-whitespace'];
+    }
+
     groups.push({
       label: raw.label.trim(),
       patterns,
       countTowardMetric,
+      ignoreWhitespace,
     });
   }
 
@@ -111,4 +123,5 @@ interface RawGroupDefinition {
   label?: unknown;
   patterns?: unknown;
   count?: unknown;
+  'ignore-whitespace'?: unknown;
 }

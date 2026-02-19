@@ -27,9 +27,15 @@ describe('generateCommentBody', () => {
     label: string,
     patterns: string[],
     files: FileChange[],
-    countTowardMetric = true
+    countTowardMetric = true,
+    ignoreWhitespace = false
   ): GroupedFiles => {
-    const group: FileGroup = { label, patterns, countTowardMetric };
+    const group: FileGroup = {
+      label,
+      patterns,
+      countTowardMetric,
+      ignoreWhitespace,
+    };
     return {
       group,
       files,
@@ -282,6 +288,69 @@ describe('generateCommentBody', () => {
       // When all are uncounted, no need to call out individual ones
       expect(body).not.toContain('changes)*');
       expect(body).not.toContain('Not counted');
+    });
+  });
+
+  describe('whitespace indicator', () => {
+    it('should show dagger and footnote for groups with ignoreWhitespace', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 100, 50)],
+          true,
+          true
+        ),
+      ]);
+
+      const body = generate(s);
+
+      // Group should have dagger marker
+      expect(body).toContain('of changes)†');
+      // Footnote should appear
+      expect(body).toContain(
+        '† *Whitespace-only changes are excluded from counts*'
+      );
+    });
+
+    it('should not show dagger for groups without ignoreWhitespace', () => {
+      const s = summary([
+        groupedFiles('Source', ['src/**'], [file('src/main.ts', 100, 50)]),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).not.toContain('†');
+      expect(body).not.toContain('Whitespace-only changes');
+    });
+
+    it('should show both asterisk and dagger when both indicators apply', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 100, 50)],
+          true,
+          false
+        ),
+        groupedFiles(
+          'Generated',
+          ['**/generated/**'],
+          [file('generated/api.ts', 500, 100)],
+          false,
+          true
+        ),
+      ]);
+
+      const body = generate(s);
+
+      // Generated group should have both markers
+      expect(body).toContain('of changes)*†');
+      // Both footnotes should appear
+      expect(body).toContain('Not counted toward the main +/- metric');
+      expect(body).toContain(
+        'Whitespace-only changes are excluded from counts'
+      );
     });
   });
 

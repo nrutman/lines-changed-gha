@@ -1,4 +1,5 @@
 import { minimatch } from 'minimatch';
+import type { GitLineCounts } from './getGitWhitespaceDiff';
 import type {
   DefaultGroupConfig,
   DiffSummary,
@@ -16,11 +17,13 @@ import type {
  *
  * @param files - Array of file changes from the GitHub API
  * @param config - File groups configuration
+ * @param whitespaceAdjustedCounts - Optional map of filename to whitespace-adjusted line counts from git diff -w
  * @returns Summary with files organized by group and aggregated metrics
  */
 export function calculateDiffSummary(
   files: FileChange[],
-  config: FileGroupsConfig
+  config: FileGroupsConfig,
+  whitespaceAdjustedCounts?: Map<string, GitLineCounts> | null
 ): DiffSummary {
   // Initialize a map to track files for each group
   const groupFilesMap = new Map<FileGroup | DefaultGroupConfig, FileChange[]>();
@@ -94,11 +97,12 @@ export function calculateDiffSummary(
       continue; // Skip empty groups
     }
 
-    const groupAddedLines = groupFiles.reduce((sum, f) => sum + f.additions, 0);
-    const groupRemovedLines = groupFiles.reduce(
-      (sum, f) => sum + f.deletions,
-      0
-    );
+    const { added: groupAddedLines, removed: groupRemovedLines } =
+      aggregateGroupLines(
+        groupFiles,
+        group.ignoreWhitespace,
+        whitespaceAdjustedCounts
+      );
 
     groupedFiles.push({
       group,
@@ -124,4 +128,29 @@ export function calculateDiffSummary(
     totalFiles: files.length,
     groupedFiles,
   };
+}
+
+/**
+ * Aggregates line counts for a group's files, using whitespace-adjusted counts
+ * when the group has ignoreWhitespace enabled and adjusted counts are available.
+ */
+function aggregateGroupLines(
+  files: FileChange[],
+  ignoreWhitespace: boolean,
+  whitespaceAdjustedCounts?: Map<string, GitLineCounts> | null
+): { added: number; removed: number } {
+  let added = 0;
+  let removed = 0;
+
+  for (const file of files) {
+    const adjusted =
+      ignoreWhitespace && whitespaceAdjustedCounts
+        ? whitespaceAdjustedCounts.get(file.filename)
+        : undefined;
+
+    added += adjusted ? adjusted.additions : file.additions;
+    removed += adjusted ? adjusted.deletions : file.deletions;
+  }
+
+  return { added, removed };
 }
