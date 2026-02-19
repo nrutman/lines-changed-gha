@@ -35,4 +35,9 @@ jobs:
                 - "pnpm-lock.yaml"
               count: false
               ignore-whitespace: false
+            - label: "🛠️ Dev Tools"
+              patterns:
+                - ".claude/**"
+              count: false
+              ignore-whitespace: false
           default-group-label: '🏅 Source Code'
