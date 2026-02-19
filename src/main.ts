@@ -132,6 +132,9 @@ async function run(): Promise<void> {
       headSha
     );
 
+    // Write to job summary
+    await core.summary.addRaw(commentBody).write();
+
     // Find existing comment
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,

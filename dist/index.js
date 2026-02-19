@@ -19821,6 +19821,7 @@ var Summary = class {
   }
 };
 var _summary = new Summary();
+var summary = _summary;
 
 // node_modules/.pnpm/@actions+core@3.0.0/node_modules/@actions/core/lib/platform.js
 var import_os2 = __toESM(require("os"), 1);
@@ -28158,6 +28159,7 @@ async function run() {
       prNumber,
       headSha
     );
+    await summary.addRaw(commentBody).write();
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,
       repo,
