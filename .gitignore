@@ -6,3 +6,4 @@ node_modules/
 *.tsbuildinfo
 coverage/
 .eslintcache
+.claude/settings.local.json
