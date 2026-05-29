@@ -27,27 +27,48 @@ describe('generateCommentBody', () => {
     label: string,
     patterns: string[],
     files: FileChange[],
-    countTowardMetric = true
+    countTowardMetric = true,
+    ignoreWhitespace = false,
+    whitespaceOnly?: { added: number; removed: number }
   ): GroupedFiles => {
-    const group: FileGroup = { label, patterns, countTowardMetric };
-    return {
+    const group: FileGroup = {
+      label,
+      patterns,
+      countTowardMetric,
+      ignoreWhitespace,
+    };
+    const entry: GroupedFiles = {
       group,
       files,
       addedLines: files.reduce((sum, f) => sum + f.additions, 0),
       removedLines: files.reduce((sum, f) => sum + f.deletions, 0),
     };
+    if (whitespaceOnly) {
+      entry.whitespaceOnlyAddedLines = whitespaceOnly.added;
+      entry.whitespaceOnlyRemovedLines = whitespaceOnly.removed;
+    }
+    return entry;
   };
 
   // Helper to create a grouped files entry for the default group (no patterns)
   const defaultGroupedFiles = (
     label: string,
-    files: FileChange[]
-  ): GroupedFiles => ({
-    group: { label, countTowardMetric: true },
-    files,
-    addedLines: files.reduce((sum, f) => sum + f.additions, 0),
-    removedLines: files.reduce((sum, f) => sum + f.deletions, 0),
-  });
+    files: FileChange[],
+    ignoreWhitespace = false,
+    whitespaceOnly?: { added: number; removed: number }
+  ): GroupedFiles => {
+    const entry: GroupedFiles = {
+      group: { label, countTowardMetric: true, ignoreWhitespace },
+      files,
+      addedLines: files.reduce((sum, f) => sum + f.additions, 0),
+      removedLines: files.reduce((sum, f) => sum + f.deletions, 0),
+    };
+    if (whitespaceOnly) {
+      entry.whitespaceOnlyAddedLines = whitespaceOnly.added;
+      entry.whitespaceOnlyRemovedLines = whitespaceOnly.removed;
+    }
+    return entry;
+  };
 
   // Helper to create a summary
   const summary = (
@@ -282,6 +303,173 @@ describe('generateCommentBody', () => {
       // When all are uncounted, no need to call out individual ones
       expect(body).not.toContain('changes)*');
       expect(body).not.toContain('Not counted');
+    });
+  });
+
+  describe('whitespace indicator', () => {
+    it('should show dagger and footnote for groups with ignoreWhitespace', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 100, 50)],
+          true,
+          true
+        ),
+      ]);
+
+      const body = generate(s);
+
+      // Group should have dagger marker
+      expect(body).toContain('of changes)†');
+      // Footnote should appear
+      expect(body).toContain(
+        '† *Whitespace-only changes are excluded from counts*'
+      );
+    });
+
+    it('should not show dagger for groups without ignoreWhitespace', () => {
+      const s = summary([
+        groupedFiles('Source', ['src/**'], [file('src/main.ts', 100, 50)]),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).not.toContain('†');
+      expect(body).not.toContain('Whitespace-only changes');
+    });
+
+    it('should show whitespace-only excluded counts when values are set', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 80, 40)],
+          true,
+          true,
+          { added: 20, removed: 10 }
+        ),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain(
+        '*+20 / -10 whitespace-only changes excluded from line counts*'
+      );
+    });
+
+    it('should not show whitespace-only excluded counts when values are zero', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 100, 50)],
+          true,
+          true
+        ),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).not.toContain('whitespace-only changes excluded');
+    });
+
+    it('should not show whitespace-only excluded counts when values are undefined', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 100, 50)],
+          true,
+          false
+        ),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).not.toContain('whitespace-only changes excluded');
+    });
+
+    it('should place whitespace-only note after patterns and before file table', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 80, 40)],
+          true,
+          true,
+          { added: 20, removed: 10 }
+        ),
+      ]);
+
+      const body = generate(s);
+
+      const patternsIndex = body.indexOf('Patterns: `src/**`');
+      const wsNoteIndex = body.indexOf('whitespace-only changes excluded');
+      const tableIndex = body.indexOf('| File |');
+
+      expect(patternsIndex).toBeGreaterThan(-1);
+      expect(wsNoteIndex).toBeGreaterThan(-1);
+      expect(tableIndex).toBeGreaterThan(-1);
+      expect(patternsIndex).toBeLessThan(wsNoteIndex);
+      expect(wsNoteIndex).toBeLessThan(tableIndex);
+    });
+
+    it('should show dagger and footnote for default group with ignoreWhitespace', () => {
+      const s = summary([
+        defaultGroupedFiles('Changed', [file('src/main.ts', 100, 50)], true),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain('of changes)†');
+      expect(body).toContain(
+        '† *Whitespace-only changes are excluded from counts*'
+      );
+    });
+
+    it('should show whitespace-only excluded counts for default group', () => {
+      const s = summary([
+        defaultGroupedFiles('Changed', [file('src/main.ts', 80, 40)], true, {
+          added: 20,
+          removed: 10,
+        }),
+      ]);
+
+      const body = generate(s);
+
+      expect(body).toContain(
+        '*+20 / -10 whitespace-only changes excluded from line counts*'
+      );
+    });
+
+    it('should show both asterisk and dagger when both indicators apply', () => {
+      const s = summary([
+        groupedFiles(
+          'Source',
+          ['src/**'],
+          [file('src/main.ts', 100, 50)],
+          true,
+          false
+        ),
+        groupedFiles(
+          'Generated',
+          ['**/generated/**'],
+          [file('generated/api.ts', 500, 100)],
+          false,
+          true
+        ),
+      ]);
+
+      const body = generate(s);
+
+      // Generated group should have both markers
+      expect(body).toContain('of changes)*†');
+      // Both footnotes should appear
+      expect(body).toContain('Not counted toward the main +/- metric');
+      expect(body).toContain(
+        'Whitespace-only changes are excluded from counts'
+      );
     });
   });
 

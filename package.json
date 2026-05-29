@@ -1,6 +1,6 @@
 {
   "name": "lines-changed-action",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "GitHub Action to comment on PRs with lines changed summary, with configurable file groups",
   "main": "dist/index.js",
   "scripts": {

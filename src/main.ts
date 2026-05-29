@@ -4,6 +4,7 @@ import {
   calculateDiffSummary,
   COMMENT_IDENTIFIER,
   generateCommentBody,
+  getGitWhitespaceDiff,
   parseFileGroups,
   validateGlobPatterns,
 } from './utils';
@@ -13,12 +14,18 @@ async function run(): Promise<void> {
     const token = core.getInput('github-token', { required: true });
     const fileGroupsYaml = core.getInput('file-groups');
     const defaultGroupLabel = core.getInput('default-group-label') || 'Changed';
+    const globalIgnoreWhitespace =
+      core.getInput('ignore-whitespace') === 'true';
     const commentHeader = core.getInput('comment-header');
 
     // Parse file groups configuration
     let config;
     try {
-      config = parseFileGroups(fileGroupsYaml, defaultGroupLabel);
+      config = parseFileGroups(
+        fileGroupsYaml,
+        defaultGroupLabel,
+        globalIgnoreWhitespace
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : 'unknown error';
       core.setFailed(`Failed to parse file-groups configuration: ${message}`);
@@ -42,6 +49,7 @@ async function run(): Promise<void> {
     }
 
     const prNumber = context.payload.pull_request.number;
+    const baseSha = context.payload.pull_request.base.sha as string;
     const headSha = context.payload.pull_request.head.sha as string;
     const owner = context.repo.owner;
     const repo = context.repo.repo;
@@ -58,7 +66,7 @@ async function run(): Promise<void> {
       }
     }
     core.info(
-      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}`
+      `Default group: "${config.defaultGroup.label}", count=${config.defaultGroup.countTowardMetric}, ignoreWhitespace=${config.defaultGroup.ignoreWhitespace}`
     );
 
     // Get all files changed in the PR using pagination
@@ -71,8 +79,27 @@ async function run(): Promise<void> {
 
     core.info(`Found ${files.length} changed files`);
 
+    // Get whitespace-adjusted counts if any group uses ignore-whitespace
+    const hasIgnoreWhitespace =
+      config.defaultGroup.ignoreWhitespace ||
+      config.groups.some(g => g.ignoreWhitespace);
+    let whitespaceAdjustedCounts = null;
+    if (hasIgnoreWhitespace) {
+      core.info('Groups with ignore-whitespace detected, running git diff -w');
+      whitespaceAdjustedCounts = await getGitWhitespaceDiff(baseSha, headSha);
+      if (whitespaceAdjustedCounts) {
+        core.info(
+          `Got whitespace-adjusted counts for ${whitespaceAdjustedCounts.size} files`
+        );
+      }
+    }
+
     // Calculate diff summary
-    const summary = calculateDiffSummary(files, config);
+    const summary = calculateDiffSummary(
+      files,
+      config,
+      whitespaceAdjustedCounts
+    );
 
     // Log grouped files
     for (const groupedFile of summary.groupedFiles) {
@@ -90,6 +117,7 @@ async function run(): Promise<void> {
     // Set outputs
     core.setOutput('added-lines', summary.addedLines);
     core.setOutput('removed-lines', summary.removedLines);
+
     core.setOutput('uncounted-added-lines', summary.uncountedAddedLines);
     core.setOutput('uncounted-removed-lines', summary.uncountedRemovedLines);
     core.setOutput('total-files', summary.totalFiles);
@@ -103,6 +131,9 @@ async function run(): Promise<void> {
       prNumber,
       headSha
     );
+
+    // Write to job summary
+    await core.summary.addRaw(commentBody).write();
 
     // Find existing comment
     const { data: comments } = await octokit.rest.issues.listComments({
@@ -118,6 +149,7 @@ async function run(): Promise<void> {
     // Create or update comment
     if (existingComment) {
       core.info(`Updating existing comment (ID: ${existingComment.id})`);
+
       await octokit.rest.issues.updateComment({
         owner,
         repo,
@@ -126,6 +158,7 @@ async function run(): Promise<void> {
       });
     } else {
       core.info('Creating new comment');
+
       await octokit.rest.issues.createComment({
         owner,
         repo,
@@ -136,27 +169,22 @@ async function run(): Promise<void> {
 
     core.info('✓ Lines changed summary posted successfully');
   } catch (error) {
-    if (error instanceof Error) {
-      // Provide more context for common error types
-      if (error.message.includes('Bad credentials')) {
-        core.setFailed(
-          'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.'
-        );
-      } else if (error.message.includes('Not Found')) {
-        core.setFailed(
-          `Repository or PR not found. Ensure the action is running in the correct repository context.`
-        );
-      } else if (error.message.includes('rate limit')) {
-        core.setFailed(
-          'GitHub API rate limit exceeded. Please wait before retrying.'
-        );
-      } else {
-        core.setFailed(`Action failed: ${error.message}`);
-      }
-    } else {
-      core.setFailed('An unexpected error occurred');
+    core.setFailed(getFailureReason(error));
+  }
+}
+
+function getFailureReason(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes('Bad credentials')) {
+      return 'GitHub token is invalid or lacks required permissions. Ensure the token has "pull-requests: read" and "issues: write" permissions.';
+    } else if (error.message.includes('Not Found')) {
+      return 'Repository or PR not found. Ensure the action is running in the correct repository context.';
+    } else if (error.message.includes('rate limit')) {
+      return 'GitHub API rate limit exceeded. Please wait before retrying.';
     }
   }
+
+  return 'An unexpected error occurred';
 }
 
 run();

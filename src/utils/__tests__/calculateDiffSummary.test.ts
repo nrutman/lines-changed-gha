@@ -20,22 +20,26 @@ describe('calculateDiffSummary', () => {
   const group = (
     label: string,
     patterns: string[],
-    countTowardMetric = true
+    countTowardMetric = true,
+    ignoreWhitespace = false
   ): FileGroup => ({
     label,
     patterns,
     countTowardMetric,
+    ignoreWhitespace,
   });
 
   // Helper to create config
   const config = (
     groups: FileGroup[] = [],
-    defaultGroupLabel = 'Changed'
+    defaultGroupLabel = 'Changed',
+    defaultIgnoreWhitespace = false
   ): FileGroupsConfig => ({
     groups,
     defaultGroup: {
       label: defaultGroupLabel,
       countTowardMetric: true,
+      ignoreWhitespace: defaultIgnoreWhitespace,
     },
   });
 
@@ -280,6 +284,236 @@ describe('calculateDiffSummary', () => {
         '.env',
         '.gitignore',
       ]);
+    });
+  });
+
+  describe('whitespace-adjusted counts', () => {
+    it('should use adjusted counts for groups with ignoreWhitespace', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('src/utils.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        ['src/utils.ts', { additions: 25, deletions: 8 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(105); // 80 + 25
+      expect(sourceGroup.removedLines).toBe(48); // 40 + 8
+      // Whitespace-only: raw (130, 60) - adjusted (105, 48) = (25, 12)
+      expect(sourceGroup.whitespaceOnlyAddedLines).toBe(25);
+      expect(sourceGroup.whitespaceOnlyRemovedLines).toBe(12);
+    });
+
+    it('should fall back to API counts when file not in adjusted map', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('src/missing.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        // src/missing.ts not in map
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(110); // 80 + 30 (fallback)
+      expect(sourceGroup.removedLines).toBe(50); // 40 + 10 (fallback)
+      // Whitespace-only: raw (130, 60) - adjusted (110, 50) = (20, 10)
+      expect(sourceGroup.whitespaceOnlyAddedLines).toBe(20);
+      expect(sourceGroup.whitespaceOnlyRemovedLines).toBe(10);
+    });
+
+    it('should use raw counts for groups without ignoreWhitespace', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('test/main.test.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        ['test/main.test.ts', { additions: 20, deletions: 5 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([
+          group('Source', ['src/**'], true, true),
+          group('Tests', ['test/**'], true, false),
+        ]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(80); // adjusted
+      expect(sourceGroup.removedLines).toBe(40); // adjusted
+      // Whitespace-only: raw (100, 50) - adjusted (80, 40) = (20, 10)
+      expect(sourceGroup.whitespaceOnlyAddedLines).toBe(20);
+      expect(sourceGroup.whitespaceOnlyRemovedLines).toBe(10);
+
+      const testsGroup = result.groupedFiles.find(
+        g => g.group.label === 'Tests'
+      )!;
+      expect(testsGroup.addedLines).toBe(30); // raw API counts
+      expect(testsGroup.removedLines).toBe(10); // raw API counts
+      // No ignoreWhitespace, so fields should be undefined
+      expect(testsGroup.whitespaceOnlyAddedLines).toBeUndefined();
+      expect(testsGroup.whitespaceOnlyRemovedLines).toBeUndefined();
+    });
+
+    it('should use raw counts when adjustedCounts is null', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        null
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(100);
+      expect(sourceGroup.removedLines).toBe(50);
+      // No adjusted counts available, so no whitespace delta
+      expect(sourceGroup.whitespaceOnlyAddedLines).toBeUndefined();
+      expect(sourceGroup.whitespaceOnlyRemovedLines).toBeUndefined();
+    });
+
+    it('should use raw counts when adjustedCounts is undefined', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)])
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(100);
+      expect(sourceGroup.removedLines).toBe(50);
+      // No adjusted counts available, so no whitespace delta
+      expect(sourceGroup.whitespaceOnlyAddedLines).toBeUndefined();
+      expect(sourceGroup.whitespaceOnlyRemovedLines).toBeUndefined();
+    });
+
+    it('should not set whitespace fields when delta is zero', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      // Adjusted counts match raw counts exactly (no whitespace-only changes)
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 100, deletions: 50 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([group('Source', ['src/**'], true, true)]),
+        adjustedCounts
+      );
+
+      const sourceGroup = result.groupedFiles.find(
+        g => g.group.label === 'Source'
+      )!;
+      expect(sourceGroup.addedLines).toBe(100);
+      expect(sourceGroup.removedLines).toBe(50);
+      // Zero delta means fields should not be set
+      expect(sourceGroup.whitespaceOnlyAddedLines).toBeUndefined();
+      expect(sourceGroup.whitespaceOnlyRemovedLines).toBeUndefined();
+    });
+  });
+
+  describe('default group whitespace-adjusted counts', () => {
+    it('should use adjusted counts for default group with ignoreWhitespace', () => {
+      const files = [
+        file('src/main.ts', 100, 50),
+        file('src/utils.ts', 30, 10),
+      ];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+        ['src/utils.ts', { additions: 25, deletions: 8 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([], 'Changed', true),
+        adjustedCounts
+      );
+
+      const defaultGroup = result.groupedFiles.find(
+        g => g.group.label === 'Changed'
+      )!;
+      expect(defaultGroup.addedLines).toBe(105); // 80 + 25
+      expect(defaultGroup.removedLines).toBe(48); // 40 + 8
+      expect(defaultGroup.whitespaceOnlyAddedLines).toBe(25); // 130 - 105
+      expect(defaultGroup.whitespaceOnlyRemovedLines).toBe(12); // 60 - 48
+
+      // Overall metrics should use adjusted counts
+      expect(result.addedLines).toBe(105);
+      expect(result.removedLines).toBe(48);
+    });
+
+    it('should use raw counts for default group without ignoreWhitespace', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 80, deletions: 40 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([], 'Changed', false),
+        adjustedCounts
+      );
+
+      const defaultGroup = result.groupedFiles.find(
+        g => g.group.label === 'Changed'
+      )!;
+      expect(defaultGroup.addedLines).toBe(100); // raw counts
+      expect(defaultGroup.removedLines).toBe(50);
+      expect(defaultGroup.whitespaceOnlyAddedLines).toBeUndefined();
+      expect(defaultGroup.whitespaceOnlyRemovedLines).toBeUndefined();
+    });
+
+    it('should not set whitespace fields when delta is zero for default group', () => {
+      const files = [file('src/main.ts', 100, 50)];
+
+      const adjustedCounts = new Map([
+        ['src/main.ts', { additions: 100, deletions: 50 }],
+      ]);
+
+      const result = calculateDiffSummary(
+        files,
+        config([], 'Changed', true),
+        adjustedCounts
+      );
+
+      const defaultGroup = result.groupedFiles.find(
+        g => g.group.label === 'Changed'
+      )!;
+      expect(defaultGroup.whitespaceOnlyAddedLines).toBeUndefined();
+      expect(defaultGroup.whitespaceOnlyRemovedLines).toBeUndefined();
     });
   });
 
