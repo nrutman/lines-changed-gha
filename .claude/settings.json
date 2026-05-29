@@ -21,10 +21,11 @@
       "Bash(else echo \"✅ PASS: dist is up to date\")",
       "Bash(fi)",
       "Bash(pnpm check:*)",
-      "Bash(git -C /Users/nathan/Dev/lines-changed-gha status --porcelain dist/)",
       "Bash(pnpm build:*)",
       "Bash(pnpm format:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm -v)",
+      "Bash(pnpm info:*)"
     ]
   }
 }
