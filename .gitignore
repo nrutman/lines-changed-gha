@@ -5,5 +5,4 @@ node_modules/
 .env.local
 *.tsbuildinfo
 coverage/
-.eslintcache
 .claude/settings.local.json
