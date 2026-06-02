@@ -1,2 +1,8 @@
+# Delay installing newly published versions by 3 days (4320 minutes).
+# Most malicious releases are caught and pulled from the registry within an
+# hour, so this window protects us from dependency-chain attacks — including
+# during dependency updates, which won't resolve anything published this recently.
+minimumReleaseAge: 4320
+
 ignoredBuiltDependencies:
   - esbuild
